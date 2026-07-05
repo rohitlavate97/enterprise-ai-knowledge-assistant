@@ -1,5 +1,9 @@
 """Pytest configurations and fixtures."""
 
+import os
+
+os.environ["APP_ENV"] = "testing"
+
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 

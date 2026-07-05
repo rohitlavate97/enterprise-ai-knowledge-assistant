@@ -52,3 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented recursive sliding-window semantic text chunker `app/services/document_chunker.py` utilizing a state manager `ChunkerState` to split content cleanly along sentence and paragraph boundaries.
 - Integrated text extraction and semantic chunking within the async background worker task `process_document_task` in `app/services/document_processing.py`.
 - Added unit and pipeline tests in `tests/test_document_ingestion.py` covering parser and chunker logic, including mock-based PDF reader tests.
+- Installed and configured `sentence-transformers` dependency for local embeddings generation.
+- Created Qdrant client initializer `app/core/vector_db.py` supporting connection status checks and graceful fallback to in-memory storage (`:memory:`).
+- Implemented lazy-loaded local SentenceTransformers embedding service `app/services/embedding_service.py` to prevent startup import overheads.
+- Created `app/services/vector_service.py` to coordinate index creation, document chunk upserts, and similar scoring searches Scoped by tenant parameters (department and team).
+- Configured document deletion endpoint and background document task processor to index or delete vector points in sync with document lifecycle.
+- Set up isolated testing configurations in `tests/conftest.py` setting `APP_ENV="testing"` globally.
+- Wrote integration and semantic search tests under `tests/test_vector_db.py`.
