@@ -58,3 +58,23 @@ class SearchResultResponse(BaseModel):
     department_id: UUID | None = None
     team_id: UUID | None = None
 
+
+class QueryRequest(BaseModel):
+    """Schema representing a request to query the knowledge base."""
+
+    question: str = Field(min_length=1)
+    limit: int = Field(default=5, gt=0, le=20)
+    threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    department_id: UUID | None = None
+    team_id: UUID | None = None
+
+
+class QueryResponse(BaseModel):
+    """Schema representing the reasoning answer alongside sources."""
+
+    answer: str
+    has_sufficient_context: bool
+    confidence_score: float
+    sources: list[SearchResultResponse]
+
+

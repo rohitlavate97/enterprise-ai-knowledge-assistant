@@ -21,8 +21,15 @@ from app.api.deps import get_current_active_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.document import DocumentCreate, DocumentResponse, SearchResultResponse
+from app.schemas.document import (
+    DocumentCreate,
+    DocumentResponse,
+    QueryRequest,
+    QueryResponse,
+    SearchResultResponse,
+)
 from app.schemas.user import UserRole
+from app.services.ai_service import ai_service
 from app.services.document_processing import process_document_task
 from app.services.document_service import document_service
 from app.services.vector_service import vector_service
@@ -153,6 +160,79 @@ async def search_documents(  # noqa: PLR0913
 
     # 3. Filter by similarity threshold
     return [r for r in results if r["score"] >= threshold]
+
+
+@router.post("/query", response_model=QueryResponse)
+async def query_knowledge_base(
+    request: QueryRequest,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> Any:
+    """Coordinate RAG operations: retrieve matching document chunks, then reason.
+
+    Access scopes:
+    - Standard Users are restricted to their own department (and optionally
+      team) documents.
+    - Admins can query globally or override with any department/team scope.
+    """
+    # 1. Enforce RBAC tenant scoping rules
+    if current_user.role != UserRole.ADMIN:
+        # Standard user is locked to their own department
+        target_department_id = current_user.department_id
+        target_team_id = (
+            request.team_id
+            if request.team_id == current_user.team_id
+            else current_user.team_id
+        )
+
+        # If user is not in any department, they cannot view documents
+        if target_department_id is None:
+            return QueryResponse(
+                answer="No relevant documents found.",
+                has_sufficient_context=False,
+                confidence_score=0.0,
+                sources=[],
+            )
+    else:
+        # Admins can query globally or filter by requested parameters
+        target_department_id = request.department_id
+        target_team_id = request.team_id
+
+    # 2. Retrieve matching chunks from Vector DB
+    results = vector_service.search_similar_chunks(
+        query=request.question,
+        limit=request.limit,
+        department_id=target_department_id,
+        team_id=target_team_id,
+    )
+
+    # 3. Filter by similarity threshold
+    sources = [r for r in results if r["score"] >= request.threshold]
+
+    # 4. If no sources found, return empty query response
+    if not sources:
+        return QueryResponse(
+            answer="No relevant documents found.",
+            has_sufficient_context=False,
+            confidence_score=0.0,
+            sources=[],
+        )
+
+    # 5. Compile context and call PydanticAI reasoning layer
+    context_chunks = [s["text"] for s in sources]
+    agent_res = await ai_service.answer_with_context(
+        question=request.question,
+        context_chunks=context_chunks,
+    )
+
+    # Convert dictionary matches to SearchResultResponse models
+    source_responses = [SearchResultResponse(**s) for s in sources]
+
+    return QueryResponse(
+        answer=agent_res.answer,
+        has_sufficient_context=agent_res.has_sufficient_context,
+        confidence_score=agent_res.confidence_score,
+        sources=source_responses,
+    )
 
 
 @router.get("/{doc_id}", response_model=DocumentResponse)
