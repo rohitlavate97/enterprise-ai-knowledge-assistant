@@ -8,8 +8,8 @@ Establish the foundational repository structure, configure dependency management
 - [x] Configure tool linting and settings in `pyproject.toml` (Ruff, MyPy)
 - [x] Initialize Git ignore rules (`.gitignore`)
 - [x] Establish milestone tracking folder (`milestones/`) and CHANGELOG (`CHANGELOG.md`)
-- [ ] Initialize Python Virtual Environment & verify dependencies installation (in progress)
-- [ ] Create basic repository structure and initial README update (in progress)
+- [x] Initialize Python Virtual Environment & verify dependencies installation
+- [x] Create basic repository structure and initial README update
 
 ## Key Technical Decisions & Justifications
 - **Ruff & MyPy:** Standardized tooling for quick and robust linting, formatting, and strict type verification.
