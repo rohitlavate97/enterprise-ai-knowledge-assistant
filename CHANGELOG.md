@@ -47,3 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exposed API endpoints under `/documents` for secure multipart file uploads, retrieval, lists, and deletion.
 - Set up async background task handler in `app/services/document_processing.py` executing document lifecycle status updates (`pending` -> `processing` -> `completed` / `failed`).
 - Wrote integration and API tests in `tests/test_document_management.py` validating upload handling, background task execution, and disk/db record cleaning.
+- Installed and configured `pypdf` dependency for parsing PDF document formats.
+- Created text extraction adapter `app/services/document_parser.py` supporting plain text, markdown, and PDF pages parsing.
+- Implemented recursive sliding-window semantic text chunker `app/services/document_chunker.py` utilizing a state manager `ChunkerState` to split content cleanly along sentence and paragraph boundaries.
+- Integrated text extraction and semantic chunking within the async background worker task `process_document_task` in `app/services/document_processing.py`.
+- Added unit and pipeline tests in `tests/test_document_ingestion.py` covering parser and chunker logic, including mock-based PDF reader tests.
