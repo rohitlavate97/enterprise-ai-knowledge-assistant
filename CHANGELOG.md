@@ -33,3 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created a database seeding utility script `app/core/seed.py` that automatically inserts a default admin user.
 - Updated `UserRepository`, `UserService`, security dependencies, and authentication routes to execute async database operations using SQLAlchemy sessions.
 - Configured pytest schema setup/teardown and transactional rollback fixtures inside `tests/conftest.py` supporting isolated, database-backed async testing.
+- Created SQLAlchemy models for `Department` (`app/models/department.py`) and `Team` (`app/models/team.py`), referencing them via nullable foreign keys on the `User` model.
+- Generated the second Alembic schema migration script implementing the `departments` and `teams` tables and their relations.
+- Created Pydantic data schemas in `app/schemas/department.py` and `app/schemas/team.py` and updated `app/schemas/user.py` to support departments and teams parameters.
+- Implemented asynchronous database operations and repositories (`department_repo`, `team_repo`) and service layers (`department_service`, `team_service`, `user_service` updates) to manage corporate structure entities.
+- Registered endpoints under `/departments`, `/teams`, and `/users` with proper RBAC dependency guards (restricting creations/deletions to administrative roles while leaving profiles editable by account owners).
+- Wrote integration and API tests under `tests/test_user_management.py` checking constraint logic and role-based accessibility rules.
