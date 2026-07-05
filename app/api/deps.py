@@ -1,13 +1,16 @@
 """FastAPI dependency injection utilities."""
 
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import get_db
 from app.core.security import decode_token
+from app.models.user import User
 from app.repositories.user_repository import user_repo
 from app.schemas.user import UserRole
 
@@ -17,14 +20,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-) -> dict[str, Any]:
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
     """Retrieve and validate the current authenticated user from JWT token.
 
     Args:
         token: Cryptographically signed JWT token from Authorization header.
+        db: Active database async session.
 
     Returns:
-        dict[str, Any]: The authenticated user's dictionary.
+        User: The authenticated User model instance.
 
     Raises:
         HTTPException: If token is invalid, expired, or user does not exist.
@@ -46,27 +51,27 @@ async def get_current_user(
     except JWTError as err:
         raise credentials_exception from err
 
-    user = user_repo.get_by_id(user_id)
+    user = await user_repo.get_by_id(db, user_id)
     if user is None:
         raise credentials_exception
     return user
 
 
 async def get_current_active_user(
-    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
-) -> dict[str, Any]:
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
     """Ensure the authenticated user is currently active.
 
     Args:
-        current_user: The authenticated user dictionary.
+        current_user: The authenticated User model instance.
 
     Returns:
-        dict[str, Any]: The active user dictionary.
+        User: The active User model instance.
 
     Raises:
         HTTPException: If the user is inactive.
     """
-    if not current_user.get("is_active", True):
+    if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
@@ -85,20 +90,20 @@ class RoleChecker:
         self.allowed_roles = allowed_roles
 
     def __call__(
-        self, current_user: Annotated[dict[str, Any], Depends(get_current_active_user)]
-    ) -> dict[str, Any]:
+        self, current_user: Annotated[User, Depends(get_current_active_user)]
+    ) -> User:
         """Evaluate if the current active user possesses an authorized role.
 
         Args:
-            current_user: The current active user.
+            current_user: The current active User instance.
 
         Returns:
-            dict[str, Any]: The authorized user.
+            User: The authorized User instance.
 
         Raises:
             HTTPException: 403 Forbidden error if user is not authorized.
         """
-        user_role = current_user.get("role")
+        user_role = current_user.role
         if user_role not in self.allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

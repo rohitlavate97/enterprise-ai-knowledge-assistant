@@ -1,24 +1,14 @@
 """Tests for authentication and authorization (RBAC) endpoints."""
 
-from collections.abc import Generator
-
 import pytest
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password
 from app.main import app
 from app.repositories.user_repository import user_repo
 from app.schemas.user import UserCreate, UserRole
-
-
-# Clear repository after each test to ensure test isolation
-@pytest.fixture(autouse=True)
-def run_around_tests() -> Generator[None]:
-    """Fixture to clear the mock user repository before and after each test."""
-    user_repo.clear()
-    yield
-    user_repo.clear()
 
 
 def test_password_utilities() -> None:
@@ -31,8 +21,9 @@ def test_password_utilities() -> None:
 
 
 @pytest.mark.asyncio
-async def test_register_user() -> None:
+async def test_register_user(db: AsyncSession) -> None:
     """Test user registration endpoint."""
+    _ = db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         payload = {
@@ -51,7 +42,7 @@ async def test_register_user() -> None:
 
 
 @pytest.mark.asyncio
-async def test_login_and_access_protected() -> None:
+async def test_login_and_access_protected(db: AsyncSession) -> None:
     """Test login credentials flow and accessing protected endpoints."""
     # Pre-register user in repo
     user_in = UserCreate(
@@ -60,7 +51,7 @@ async def test_login_and_access_protected() -> None:
         password="securepassword123",
         role=UserRole.USER,
     )
-    user_repo.create(user_in, hash_password("securepassword123"))
+    await user_repo.create(db, user_in, hash_password("securepassword123"))
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -85,8 +76,9 @@ async def test_login_and_access_protected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_login_failure() -> None:
+async def test_login_failure(db: AsyncSession) -> None:
     """Test login fails with invalid credentials."""
+    _ = db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         login_response = await client.post(
@@ -101,7 +93,7 @@ async def test_login_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_flow() -> None:
+async def test_refresh_token_flow(db: AsyncSession) -> None:
     """Test generating a new access token via refresh token."""
     user_in = UserCreate(
         email="test@enterprise.com",
@@ -109,7 +101,7 @@ async def test_refresh_token_flow() -> None:
         password="securepassword123",
         role=UserRole.USER,
     )
-    user_repo.create(user_in, hash_password("securepassword123"))
+    await user_repo.create(db, user_in, hash_password("securepassword123"))
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -132,7 +124,7 @@ async def test_refresh_token_flow() -> None:
 
 
 @pytest.mark.asyncio
-async def test_role_based_access_control() -> None:
+async def test_role_based_access_control(db: AsyncSession) -> None:
     """Test RBAC blocks standard users and permits admins on restricted endpoints."""
     # 1. Create a standard User
     user_in = UserCreate(
@@ -141,7 +133,7 @@ async def test_role_based_access_control() -> None:
         password="securepassword123",
         role=UserRole.USER,
     )
-    user_repo.create(user_in, hash_password("securepassword123"))
+    await user_repo.create(db, user_in, hash_password("securepassword123"))
 
     # 2. Create an Admin User
     admin_in = UserCreate(
@@ -150,7 +142,7 @@ async def test_role_based_access_control() -> None:
         password="securepassword123",
         role=UserRole.ADMIN,
     )
-    user_repo.create(admin_in, hash_password("securepassword123"))
+    await user_repo.create(db, admin_in, hash_password("securepassword123"))
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

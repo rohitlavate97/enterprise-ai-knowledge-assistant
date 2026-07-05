@@ -6,9 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import RoleChecker, get_current_active_user
+from app.core.database import get_db
 from app.core.security import create_access_token, create_refresh_token, decode_token
+from app.models.user import User
 from app.repositories.user_repository import user_repo
 from app.schemas.auth import Token, TokenRefreshRequest
 from app.schemas.user import UserCreate, UserResponse, UserRole
@@ -22,25 +25,30 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def register(user_in: UserCreate) -> Any:
+async def register(
+    user_in: UserCreate, db: Annotated[AsyncSession, Depends(get_db)]
+) -> Any:
     """Register a new user in the system."""
-    return user_service.register_user(user_in)
+    return await user_service.register_user(db, user_in)
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Any:
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Any:
     """OAuth2 compatible token login, returning access and refresh tokens.
 
     Validates credentials against email and password.
     """
-    user = user_service.authenticate(form_data.username, form_data.password)
+    user = await user_service.authenticate(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect email or password",
         )
 
-    subject = {"sub": str(user["id"]), "role": user["role"]}
+    subject = {"sub": str(user.id), "role": user.role}
     return {
         "access_token": create_access_token(subject=subject),
         "refresh_token": create_refresh_token(subject=subject),
@@ -49,7 +57,9 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> A
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(refresh_in: TokenRefreshRequest) -> Any:
+async def refresh_token(
+    refresh_in: TokenRefreshRequest, db: Annotated[AsyncSession, Depends(get_db)]
+) -> Any:
     """Generate new access and refresh tokens using a valid refresh token."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -69,14 +79,14 @@ async def refresh_token(refresh_in: TokenRefreshRequest) -> Any:
     except (JWTError, ValueError) as err:
         raise credentials_exception from err
 
-    user = user_repo.get_by_id(user_id)
-    if not user or not user.get("is_active", True):
+    user = await user_repo.get_by_id(db, user_id)
+    if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found or inactive",
         )
 
-    subject = {"sub": str(user["id"]), "role": user["role"]}
+    subject = {"sub": str(user.id), "role": user.role}
     return {
         "access_token": create_access_token(subject=subject),
         "refresh_token": create_refresh_token(subject=subject),
@@ -86,7 +96,7 @@ async def refresh_token(refresh_in: TokenRefreshRequest) -> Any:
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(
-    current_user: Annotated[dict[str, Any], Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> Any:
     """Get profile details of the current logged-in user."""
     return current_user
@@ -94,7 +104,7 @@ async def get_me(
 
 @router.get("/admin-only")
 async def admin_only_endpoint(
-    current_user: Annotated[dict[str, Any], Depends(RoleChecker([UserRole.ADMIN]))],
+    current_user: Annotated[User, Depends(RoleChecker([UserRole.ADMIN]))],
 ) -> Any:
     """An admin-only endpoint to verify role checking dependencies."""
-    return {"message": f"Hello Admin {current_user.get('full_name')}"}
+    return {"message": f"Hello Admin {current_user.full_name}"}
