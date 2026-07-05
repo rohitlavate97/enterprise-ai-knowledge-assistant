@@ -37,6 +37,9 @@ ignore = []
 combine-as-imports = true
 force-wrap-aliases = true
 
+[tool.ruff.lint.extend-per-file-ignores]
+"frontend/*" = ["E501", "PLR2004", "PLR0915", "PLR0912", "C901"]
+
 [tool.mypy]
 python_version = "3.13"
 strict = true
