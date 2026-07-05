@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
 
+    # Storage Settings
+    UPLOAD_DIR: str = "storage/documents"
+
     # Security & Authentication
     JWT_SECRET_KEY: str = "supersecretjwtkeyplaceholderchangeinproduction"
     JWT_ALGORITHM: str = "HS256"
