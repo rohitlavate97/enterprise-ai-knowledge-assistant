@@ -150,4 +150,5 @@ desktop.ini
 # Project specific
 .qdrant/
 uploads/
+storage/
 logs/

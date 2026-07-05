@@ -15,11 +15,11 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.deps import get_current_active_user
 from app.core.config import settings
-from app.core.database import SessionLocal, get_db
+from app.core.database import get_db
 from app.models.user import User
 from app.schemas.document import DocumentCreate, DocumentResponse
 from app.services.document_processing import process_document_task
@@ -84,7 +84,14 @@ async def upload_document(  # noqa: PLR0913
     db_doc = await document_service.create_document_record(db, doc_in)
 
     # 6. Trigger asynchronous background processing task
-    background_tasks.add_task(process_document_task, SessionLocal, db_doc.id)
+    session_factory = async_sessionmaker(
+        bind=db.bind,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
+    background_tasks.add_task(process_document_task, session_factory, db_doc.id)
 
     return db_doc
 

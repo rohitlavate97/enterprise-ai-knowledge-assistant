@@ -39,3 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented asynchronous database operations and repositories (`department_repo`, `team_repo`) and service layers (`department_service`, `team_service`, `user_service` updates) to manage corporate structure entities.
 - Registered endpoints under `/departments`, `/teams`, and `/users` with proper RBAC dependency guards (restricting creations/deletions to administrative roles while leaving profiles editable by account owners).
 - Wrote integration and API tests under `tests/test_user_management.py` checking constraint logic and role-based accessibility rules.
+- Created SQLAlchemy database model for `Document` (`app/models/document.py`), including foreign keys to users, departments, and teams.
+- Generated the third Alembic schema migration script creating the `documents` table.
+- Created Pydantic validation schemas in `app/schemas/document.py` modeling creation metadata and responses.
+- Implemented asynchronous database operations and repositories (`document_repo`) and service layers (`document_service`) to manage document metadata records.
+- Configured local storage directory adapter settings (`UPLOAD_DIR`) in `app/core/config.py` and updated `.gitignore` to omit stored files.
+- Exposed API endpoints under `/documents` for secure multipart file uploads, retrieval, lists, and deletion.
+- Set up async background task handler in `app/services/document_processing.py` executing document lifecycle status updates (`pending` -> `processing` -> `completed` / `failed`).
+- Wrote integration and API tests in `tests/test_document_management.py` validating upload handling, background task execution, and disk/db record cleaning.
