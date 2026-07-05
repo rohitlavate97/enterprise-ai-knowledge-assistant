@@ -22,6 +22,8 @@ class UserBase(BaseModel):
     full_name: str | None = Field(default=None, max_length=100)
     is_active: bool = True
     role: UserRole = UserRole.USER
+    department_id: UUID | None = None
+    team_id: UUID | None = None
 
 
 class UserCreate(UserBase):
@@ -38,6 +40,8 @@ class UserUpdate(BaseModel):
     password: str | None = Field(default=None, min_length=8, max_length=72)
     role: UserRole | None = None
     is_active: bool | None = None
+    department_id: UUID | None = None
+    team_id: UUID | None = None
 
 
 class UserResponse(UserBase):
