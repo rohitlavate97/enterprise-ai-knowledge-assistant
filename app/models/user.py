@@ -1,12 +1,17 @@
 """User model for relational database."""
 
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AuditMixin, Base
 from app.schemas.user import UserRole
+
+if TYPE_CHECKING:
+    from app.models.department import Department
+    from app.models.team import Team
 
 
 class User(Base, AuditMixin):
@@ -24,3 +29,14 @@ class User(Base, AuditMixin):
     role: Mapped[UserRole] = mapped_column(
         String(50), default=UserRole.USER, nullable=False
     )
+
+    department_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("departments.id", ondelete="SET NULL"), nullable=True
+    )
+    team_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Relationships
+    department: Mapped["Department | None"] = relationship(back_populates="users")
+    team: Mapped["Team | None"] = relationship(back_populates="users")
