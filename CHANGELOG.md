@@ -69,6 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created `QueryRequest` and `QueryResponse` schemas in `app/schemas/document.py` for structured RAG request and response serialization.
 - Implemented `/documents/query` endpoint in `app/api/v1/documents.py` coordinating multi-tenant semantic vector searches and PydanticAI reasoning with source document citations.
 - Wrote end-to-end multi-tenant RAG query integration tests in `tests/test_rag_query.py`.
+- Built authenticated Streamlit dashboard portal `frontend/app.py` supporting presets login, file upload tracking, vector search explorer, and structured reasoning chat tabs.
+- Configured Ruff per-file linting rules in `pyproject.toml` to ignore standard layout-specific checks for frontend files.
+
 
 
 
