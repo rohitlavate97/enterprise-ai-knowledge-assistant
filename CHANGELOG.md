@@ -59,3 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configured document deletion endpoint and background document task processor to index or delete vector points in sync with document lifecycle.
 - Set up isolated testing configurations in `tests/conftest.py` setting `APP_ENV="testing"` globally.
 - Wrote integration and semantic search tests under `tests/test_vector_db.py`.
+- Created `SearchResultResponse` schema in `app/schemas/document.py` representing semantic chunk search results.
+- Fixed a data mapping bug in `UserRepository.create` to ensure new users are successfully registered with their department and team scopes.
+- Implemented `/documents/search` endpoint in `app/api/v1/documents.py` supporting similarity thresholding and strict department-level/team-level role restrictions.
+- Wrote end-to-end multi-tenant scoped semantic search integration tests in `tests/test_document_search.py`.
+
