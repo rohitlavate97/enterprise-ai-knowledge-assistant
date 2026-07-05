@@ -14,3 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added basic repository package structure (`app/`, `tests/`) and initialized a baseline FastAPI health endpoint.
 - Configured local code styling, formatting (Ruff), strict type validation (MyPy), and async testing (Pytest) suites.
 - Added environment variable configuration template (`.env.example`) and comprehensive developer setup guide in `README.md`.
+- Configured local infrastructure skeleton (`docker-compose.yml`) containing MySQL 8.4, Redis 7, RabbitMQ 3, and Qdrant 1.10.
+- Established frontend module structure (`frontend/`) and a baseline Streamlit thin client interface (`app.py`).
+- Integrated pre-commit configuration (`.pre-commit-config.yaml`) with Ruff formatting/linting and MyPy type check hooks.
+- Configured a baseline Github Actions CI workflow (`.github/workflows/ci.yml`) to run automated checks (Ruff, MyPy, Pytest) on branch pushes and pull requests.
+
