@@ -63,4 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed a data mapping bug in `UserRepository.create` to ensure new users are successfully registered with their department and team scopes.
 - Implemented `/documents/search` endpoint in `app/api/v1/documents.py` supporting similarity thresholding and strict department-level/team-level role restrictions.
 - Wrote end-to-end multi-tenant scoped semantic search integration tests in `tests/test_document_search.py`.
+- Configured structured AI response schema `AgentResponse` and PydanticAI Agent initialized using modern `OpenAIChatModel` and `OpenAIProvider` wrappers in `app/core/ai.py`.
+- Implemented reasoning service layer `app/services/ai_service.py` to format prompt inputs and orchestrate structured agent response extraction.
+- Wrote AI reasoning validation and mock test suites in `tests/test_ai_reasoning.py`.
+
 
