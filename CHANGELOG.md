@@ -18,4 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Established frontend module structure (`frontend/`) and a baseline Streamlit thin client interface (`app.py`).
 - Integrated pre-commit configuration (`.pre-commit-config.yaml`) with Ruff formatting/linting and MyPy type check hooks.
 - Configured a baseline Github Actions CI workflow (`.github/workflows/ci.yml`) to run automated checks (Ruff, MyPy, Pytest) on branch pushes and pull requests.
+- Implemented JWT token encoding, decoding, validation, and token rotation security utilities using `python-jose`.
+- Configured password hashing and verification using the standard `bcrypt` library directly, ensuring compatibility and bypassing unmaintained `passlib` context errors.
+- Created DTO Pydantic schemas in `app/schemas/` for authentication (`Token`, `TokenRefreshRequest`, `LoginRequest`) and user profiles (`UserCreate`, `UserUpdate`, `UserResponse`, and `UserRole` StrEnum).
+- Created a simulated in-memory user repository layer (`app/repositories/user_repository.py`) and service layer (`app/services/user_service.py`) to handle authentication business logic without requiring database connections.
+- Implemented core FastAPI dependency injection utilities in `app/api/deps.py` for token verification (`get_current_user`, `get_current_active_user`) and RBAC checking (`RoleChecker`).
+- Setup versioned routing under `app/api/v1/auth.py` registering endpoints for registration, login, token refresh, and RBAC-restricted routes.
+- Added comprehensive unit and integration tests under `tests/test_auth.py` covering registration, credentials verification, token refresh, and Role-Based Access Control logic.
+
 
