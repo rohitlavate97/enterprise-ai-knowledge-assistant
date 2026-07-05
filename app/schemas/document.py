@@ -46,3 +46,15 @@ class DocumentResponse(DocumentBase):
     team_id: UUID | None
     created_at: datetime
     updated_at: datetime
+
+
+class SearchResultResponse(BaseModel):
+    """Schema representing a single semantic search chunk match."""
+
+    id: str
+    score: float
+    text: str
+    document_id: UUID
+    department_id: UUID | None = None
+    team_id: UUID | None = None
+

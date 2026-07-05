@@ -21,7 +21,8 @@ from app.api.deps import get_current_active_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.document import DocumentCreate, DocumentResponse
+from app.schemas.document import DocumentCreate, DocumentResponse, SearchResultResponse
+from app.schemas.user import UserRole
 from app.services.document_processing import process_document_task
 from app.services.document_service import document_service
 from app.services.vector_service import vector_service
@@ -107,6 +108,51 @@ async def list_documents(
     """List all documents. Requires authentication."""
     _ = current_user
     return await document_service.list_documents(db, skip=skip, limit=limit)
+
+
+@router.get("/search", response_model=list[SearchResultResponse])
+async def search_documents(  # noqa: PLR0913
+    query: str,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    limit: int = 5,
+    threshold: float = 0.3,
+    department_id: UUID | None = None,
+    team_id: UUID | None = None,
+) -> Any:
+    """Perform semantic search across document chunks.
+
+    Access scopes:
+    - Standard Users are restricted to their own department (and optionally
+      team) documents.
+    - Admins and Superadmins can query globally or override with any
+      department/team scope.
+    """
+    # 1. Enforce RBAC tenant scoping rules
+    if current_user.role != UserRole.ADMIN:
+        # Standard user is locked to their own department
+        target_department_id = current_user.department_id
+        target_team_id = (
+            team_id if team_id == current_user.team_id else current_user.team_id
+        )
+
+        # If user is not in any department, they cannot view department-scoped documents
+        if target_department_id is None:
+            return []
+    else:
+        # Admins can query globally or filter by requested parameters
+        target_department_id = department_id
+        target_team_id = team_id
+
+    # 2. Invoke vector search
+    results = vector_service.search_similar_chunks(
+        query=query,
+        limit=limit,
+        department_id=target_department_id,
+        team_id=target_team_id,
+    )
+
+    # 3. Filter by similarity threshold
+    return [r for r in results if r["score"] >= threshold]
 
 
 @router.get("/{doc_id}", response_model=DocumentResponse)

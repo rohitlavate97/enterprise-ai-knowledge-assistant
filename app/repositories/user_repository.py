@@ -59,6 +59,8 @@ class UserRepository:
             full_name=user_in.full_name,
             is_active=user_in.is_active,
             role=user_in.role,
+            department_id=user_in.department_id,
+            team_id=user_in.team_id,
         )
         db.add(db_user)
         await db.commit()
