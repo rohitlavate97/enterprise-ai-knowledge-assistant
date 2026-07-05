@@ -66,5 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configured structured AI response schema `AgentResponse` and PydanticAI Agent initialized using modern `OpenAIChatModel` and `OpenAIProvider` wrappers in `app/core/ai.py`.
 - Implemented reasoning service layer `app/services/ai_service.py` to format prompt inputs and orchestrate structured agent response extraction.
 - Wrote AI reasoning validation and mock test suites in `tests/test_ai_reasoning.py`.
+- Created `QueryRequest` and `QueryResponse` schemas in `app/schemas/document.py` for structured RAG request and response serialization.
+- Implemented `/documents/query` endpoint in `app/api/v1/documents.py` coordinating multi-tenant semantic vector searches and PydanticAI reasoning with source document citations.
+- Wrote end-to-end multi-tenant RAG query integration tests in `tests/test_rag_query.py`.
+
 
 
