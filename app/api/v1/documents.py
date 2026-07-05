@@ -24,6 +24,7 @@ from app.models.user import User
 from app.schemas.document import DocumentCreate, DocumentResponse
 from app.services.document_processing import process_document_task
 from app.services.document_service import document_service
+from app.services.vector_service import vector_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -142,6 +143,9 @@ async def delete_document(
                 db_doc.file_path,
                 str(err),
             )
+
+
+    vector_service.delete_document_points(doc_id)
 
     # Remove database record
     await document_service.delete_document_record(db, doc_id)

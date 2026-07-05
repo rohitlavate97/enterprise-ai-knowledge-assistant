@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.services.document_chunker import chunk_text
 from app.services.document_parser import extract_text
 from app.services.document_service import document_service
+from app.services.vector_service import vector_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,17 @@ async def process_document_task(
                 db_doc.filename,
             )
 
-            # TODO: Store chunks and generate vector embeddings in Milestone 8.
+
+            vector_service.index_document_chunks(
+                doc_id=db_doc.id,
+                chunks=chunks,
+                user_id=db_doc.user_id,
+                department_id=db_doc.department_id,
+                team_id=db_doc.team_id,
+            )
+            logger.info(
+                "Successfully indexed %d chunks in vector database", len(chunks)
+            )
 
             # 4. Update status to 'completed'
             await document_service.update_document_status(
