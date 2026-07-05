@@ -1,11 +1,13 @@
 """Background task service for processing and ingestion of documents."""
 
-import asyncio
 import logging
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.services.document_chunker import chunk_text
+from app.services.document_parser import extract_text
 from app.services.document_service import document_service
 
 logger = logging.getLogger(__name__)
@@ -17,21 +19,41 @@ async def process_document_task(
 ) -> None:
     """Asynchronously parses, chunks, and indexes a document in the background.
 
-    This serves as a placeholder for the future RAG processing pipeline.
+    Coordinates extraction, chunking, and later vector database storage.
     """
     logger.info("Starting background document processing for doc_id: %s", doc_id)
 
     async with session_factory() as db:
         try:
             # 1. Update status to 'processing'
-            await document_service.update_document_status(db, doc_id, "processing")
+            db_doc = await document_service.update_document_status(
+                db, doc_id, "processing"
+            )
             logger.info("Document %s status updated to 'processing'", doc_id)
 
-            # 2. Simulate document parsing and chunking delay
-            await asyncio.sleep(2)
+            # 2. Parse text content from storage
+            file_path = Path(db_doc.file_path)
+            extracted_text = await extract_text(file_path, db_doc.mime_type)
+            logger.info(
+                "Successfully extracted %d characters from %s",
+                len(extracted_text),
+                db_doc.filename,
+            )
 
-            # 3. Update status to 'completed'
-            await document_service.update_document_status(db, doc_id, "completed")
+            # 3. Chunk text content recursively
+            chunks = chunk_text(extracted_text)
+            logger.info(
+                "Generated %d chunks for document %s",
+                len(chunks),
+                db_doc.filename,
+            )
+
+            # TODO: Store chunks and generate vector embeddings in Milestone 8.
+
+            # 4. Update status to 'completed'
+            await document_service.update_document_status(
+                db, doc_id, "completed"
+            )
             logger.info("Document %s processing successfully completed", doc_id)
 
         except Exception as e:
