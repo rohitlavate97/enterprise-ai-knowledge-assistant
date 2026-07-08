@@ -42,9 +42,7 @@ def test_vector_indexing_and_search() -> None:
 
     # Clean up
     vector_service.delete_document_points(doc_id)
-    results = vector_service.search_similar_chunks(
-        "vector databases", limit=10
-    )
+    results = vector_service.search_similar_chunks("vector databases", limit=10)
     assert not any(r["document_id"] == str(doc_id) for r in results)
 
 
@@ -68,17 +66,13 @@ def test_vector_search_tenant_scoping() -> None:
     # Index doc B in Engineering department
     vector_service.index_document_chunks(
         doc_id=doc_b_id,
-        chunks=[
-            "Deployments should be triggered via the main pipeline branch."
-        ],
+        chunks=["Deployments should be triggered via the main pipeline branch."],
         user_id=user_id,
         department_id=dept_eng_id,
     )
 
     # Search without scope
-    results = vector_service.search_similar_chunks(
-        "pipeline deployments", limit=10
-    )
+    results = vector_service.search_similar_chunks("pipeline deployments", limit=10)
     assert len(results) >= 1
 
     # Search with HR scope -> should NOT return doc B (Engineering timesheet)

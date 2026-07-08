@@ -1,5 +1,6 @@
 """Streamlit frontend for the Enterprise AI Knowledge Assistant."""
 
+import json
 import time
 
 import httpx
@@ -137,8 +138,11 @@ st.markdown(
 
 # Sidebar layout
 with st.sidebar:
-    st.markdown('<div class="sidebar-header">⚙️ System Configuration</div>', unsafe_allow_html=True)
-    
+    st.markdown(
+        '<div class="sidebar-header">⚙️ System Configuration</div>',
+        unsafe_allow_html=True,
+    )
+
     # Server status indicator
     if backend_online:
         st.success("🟢 Backend API: Online")
@@ -146,7 +150,10 @@ with st.sidebar:
         st.error("🔴 Backend API: Offline (Run FastAPI on port 8000)")
 
     if st.session_state.token and st.session_state.user:
-        st.markdown('<div class="sidebar-header">👤 User Information</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="sidebar-header">👤 User Information</div>',
+            unsafe_allow_html=True,
+        )
         user = st.session_state.user
         st.write(f"**Name:** {user['full_name']}")
         st.write(f"**Email:** {user['email']}")
@@ -155,11 +162,17 @@ with st.sidebar:
             f"**Role:** <span class='badge badge-success'>{role_label}</span>",
             unsafe_allow_html=True,
         )
-        
+
         # Display scopes
-        dept_name = "None (Global)" if not user.get("department_id") else "HR Department" if "hr" in user["email"] else "Engineering"
+        dept_name = (
+            "None (Global)"
+            if not user.get("department_id")
+            else "HR Department"
+            if "hr" in user["email"]
+            else "Engineering"
+        )
         st.write(f"**Department Scope:** {dept_name}")
-        
+
         if st.button("Logout", use_container_width=True):
             st.session_state.token = None
             st.session_state.user = None
@@ -178,10 +191,12 @@ if not st.session_state.token:
         st.subheader("Login Credentials")
         email_input = st.text_input("Corporate Email Address")
         password_input = st.text_input("Password", type="password")
-        
+
         if st.button("Login", type="primary", use_container_width=True):
             if not backend_online:
-                st.error("Cannot connect to backend API server. Please check port 8000.")
+                st.error(
+                    "Cannot connect to backend API server. Please check port 8000."
+                )
             elif not email_input or not password_input:
                 st.error("Email and password fields are required.")
             else:
@@ -194,8 +209,10 @@ if not st.session_state.token:
                     if res.status_code == 200:
                         data = res.json()
                         st.session_state.token = data["access_token"]
-                        st.session_state.headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                        
+                        st.session_state.headers = {
+                            "Authorization": f"Bearer {st.session_state.token}"
+                        }
+
                         # Retrieve profile info
                         profile_res = httpx.get(
                             f"{API_URL}/auth/me",
@@ -208,35 +225,40 @@ if not st.session_state.token:
                         st.error("Invalid email or password. Please try again.")
                 except Exception as err:
                     st.error(f"Login request failed: {str(err)}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
         st.subheader("Quick-Fill Presets")
         st.write("Click a preset below to instantly populate credentials:")
-        
+
         if st.button("HR Staff (User Role)", use_container_width=True):
             st.warning("Click Login to authenticate as hr@enterprise.com")
             email_input = "hr@enterprise.com"
             password_input = "password123"
-            
+
         if st.button("Engineering Staff (User Role)", use_container_width=True):
             st.warning("Click Login to authenticate as eng@enterprise.com")
             email_input = "eng@enterprise.com"
             password_input = "password123"
-            
+
         if st.button("Administrator (Admin Role)", use_container_width=True):
             st.warning("Click Login to authenticate as admin@enterprise.com")
             email_input = "admin@enterprise.com"
             password_input = "password123"
-        st.markdown('</div>', unsafe_allow_html=True)
-        
+        st.markdown("</div>", unsafe_allow_html=True)
+
     st.stop()
 
 
 # Main Application Interface (Only reachable when authenticated)
-tab_docs, tab_search, tab_qa = st.tabs(
-    ["📁 Knowledge Documents", "🔍 Semantic Search", "💬 AI RAG Q&A Assistant"]
+tab_docs, tab_search, tab_qa, tab_research = st.tabs(
+    [
+        "📁 Knowledge Documents",
+        "🔍 Semantic Search",
+        "💬 AI RAG Q&A Assistant",
+        "🔬 AI Research Agent",
+    ]
 )
 
 # Fetch current departments & teams for dynamic dropdown selection
@@ -255,15 +277,17 @@ except Exception:
 # TAB 1: Knowledge Documents Management
 with tab_docs:
     st.subheader("Knowledge Base Document Manager")
-    
+
     col_list, col_upload = st.columns([3, 2])
-    
+
     # 1. List Documents
     with col_list:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
         st.write("### Managed Documents")
         try:
-            doc_res = httpx.get(f"{API_URL}/documents/", headers=st.session_state.headers)
+            doc_res = httpx.get(
+                f"{API_URL}/documents/", headers=st.session_state.headers
+            )
             if doc_res.status_code == 200:
                 docs = doc_res.json()
                 if not docs:
@@ -277,20 +301,26 @@ with tab_docs:
                             badge_cls = "badge-warning"
                         else:
                             badge_cls = "badge-danger"
-                            
+
                         # Resolve Department Name
                         dept_id = doc.get("department_id")
                         dept_tag = "Global / Public"
                         if dept_id:
-                            matching_dept = next((d for d in departments if d["id"] == dept_id), None)
-                            dept_tag = matching_dept["name"] if matching_dept else "Department Scoped"
+                            matching_dept = next(
+                                (d for d in departments if d["id"] == dept_id), None
+                            )
+                            dept_tag = (
+                                matching_dept["name"]
+                                if matching_dept
+                                else "Department Scoped"
+                            )
 
                         st.markdown(
                             f"""
                             <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <strong>{doc['title']}</strong><br/>
-                                    <small style="color: #94a3b8;">Size: {doc['file_size']} bytes | Dept: {dept_tag}</small>
+                                    <strong>{doc["title"]}</strong><br/>
+                                    <small style="color: #94a3b8;">Size: {doc["file_size"]} bytes | Dept: {dept_tag}</small>
                                 </div>
                                 <div style="display: flex; gap: 15px; align-items: center;">
                                     <span class="badge {badge_cls}">{status_str.upper()}</span>
@@ -300,9 +330,14 @@ with tab_docs:
                             unsafe_allow_html=True,
                         )
                         if st.button("🗑️ Delete", key=f"del_{doc['id']}"):
-                            del_res = httpx.delete(f"{API_URL}/documents/{doc['id']}", headers=st.session_state.headers)
+                            del_res = httpx.delete(
+                                f"{API_URL}/documents/{doc['id']}",
+                                headers=st.session_state.headers,
+                            )
                             if del_res.status_code == 200:
-                                st.success(f"Deleted document {doc['title']} successfully!")
+                                st.success(
+                                    f"Deleted document {doc['title']} successfully!"
+                                )
                                 time.sleep(0.5)
                                 st.rerun()
                             else:
@@ -311,7 +346,7 @@ with tab_docs:
                 st.error("Failed to fetch documents from API backend.")
         except Exception as err:
             st.error(f"Error fetching documents: {str(err)}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # 2. Upload Document Form
     with col_upload:
@@ -322,18 +357,20 @@ with tab_docs:
             type=["txt", "md", "pdf"],
             help="Document will be parsed, chunked, and indexed automatically in Qdrant.",
         )
-        
+
         # Scope Selection
         st.write("##### Access Partition Settings")
-        
+
         user_role = st.session_state.user["role"]
-        
+
         if user_role == "admin":
             # Admin can upload to any department or team
             dept_opts = {"None (Public)": None}
             for d in departments:
                 dept_opts[d["name"]] = d["id"]
-            selected_dept_name = st.selectbox("Department Scope Assignment", list(dept_opts.keys()))
+            selected_dept_name = st.selectbox(
+                "Department Scope Assignment", list(dept_opts.keys())
+            )
             selected_dept_id = dept_opts[selected_dept_name]
 
             team_opts = {"None (All Teams)": None}
@@ -341,7 +378,9 @@ with tab_docs:
                 # Show only teams of selected department if selected
                 if not selected_dept_id or t.get("department_id") == selected_dept_id:
                     team_opts[t["name"]] = t["id"]
-            selected_team_name = st.selectbox("Team Scope Assignment", list(team_opts.keys()))
+            selected_team_name = st.selectbox(
+                "Team Scope Assignment", list(team_opts.keys())
+            )
             selected_team_id = team_opts[selected_team_name]
         else:
             # Standard users are locked to their own department/team
@@ -354,7 +393,13 @@ with tab_docs:
                 st.error("Please upload a file first.")
             else:
                 try:
-                    files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+                    files = {
+                        "file": (
+                            uploaded_file.name,
+                            uploaded_file.getvalue(),
+                            uploaded_file.type,
+                        )
+                    }
                     data = {}
                     if selected_dept_id:
                         data["department_id"] = str(selected_dept_id)
@@ -362,22 +407,24 @@ with tab_docs:
                         data["team_id"] = str(selected_team_id)
 
                     st.info("Uploading file and scheduling background ingestion...")
-                    
+
                     res_upload = httpx.post(
                         f"{API_URL}/documents/upload",
                         files=files,
                         data=data,
                         headers=st.session_state.headers,
                     )
-                    
+
                     if res_upload.status_code == 201:
                         new_doc = res_upload.json()
                         st.success("Document uploaded successfully!")
-                        
+
                         # Real-time Ingestion Polling Loop
-                        poll_bar = st.progress(0, text="AI Ingesting: Parsing PDF pages...")
+                        poll_bar = st.progress(
+                            0, text="AI Ingesting: Parsing PDF pages..."
+                        )
                         doc_id = new_doc["id"]
-                        
+
                         for i in range(1, 101):
                             time.sleep(0.08)
                             status_check = httpx.get(
@@ -387,17 +434,23 @@ with tab_docs:
                             if status_check.status_code == 200:
                                 current_status = status_check.json()["status"]
                                 if current_status == "completed":
-                                    poll_bar.progress(100, text="Ingestion Complete: Vector points indexed in Qdrant!")
+                                    poll_bar.progress(
+                                        100,
+                                        text="Ingestion Complete: Vector points indexed in Qdrant!",
+                                    )
                                     break
                                 elif current_status == "processing":
-                                    poll_bar.progress(min(i * 4, 90), text="AI processing: Stateful Recursive Chunking & Embedding...")
+                                    poll_bar.progress(
+                                        min(i * 4, 90),
+                                        text="AI processing: Stateful Recursive Chunking & Embedding...",
+                                    )
                         time.sleep(0.8)
                         st.rerun()
                     else:
                         st.error("Ingestion upload failed. Please try again.")
                 except Exception as err:
                     st.error(f"Inference Ingestion request failed: {str(err)}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # TAB 2: Semantic Similarity Search Inspector
@@ -406,12 +459,20 @@ with tab_search:
     st.write("Inspect matching vector database points across document chunks.")
 
     search_query = st.text_input("Enter search keywords/sentence:")
-    
+
     col_lim, col_th = st.columns(2)
     with col_lim:
-        search_limit = st.slider("Result Count Limit", min_value=1, max_value=20, value=5)
+        search_limit = st.slider(
+            "Result Count Limit", min_value=1, max_value=20, value=5
+        )
     with col_th:
-        search_threshold = st.slider("Similarity Threshold Score", min_value=0.0, max_value=1.0, value=0.3, step=0.05)
+        search_threshold = st.slider(
+            "Similarity Threshold Score",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.3,
+            step=0.05,
+        )
 
     if st.button("Search Vector DB", type="primary"):
         if not search_query:
@@ -424,7 +485,7 @@ with tab_search:
                     "limit": search_limit,
                     "threshold": search_threshold,
                 }
-                
+
                 # Standard users are locked to their own department/team (enforced in the backend REST controller)
                 if st.session_state.user["role"] == "admin":
                     # Admin can override scopes if needed
@@ -435,11 +496,13 @@ with tab_search:
                     params=params,
                     headers=st.session_state.headers,
                 )
-                
+
                 if res_search.status_code == 200:
                     results = res_search.json()
                     if not results:
-                        st.warning("No chunks matched the query or similarity threshold limits.")
+                        st.warning(
+                            "No chunks matched the query or similarity threshold limits."
+                        )
                     else:
                         st.success(f"Retrieved {len(results)} matching chunks!")
                         for idx, chunk in enumerate(results):
@@ -448,13 +511,13 @@ with tab_search:
                                 <div class="glass-card" style="border-left: 4px solid #3b82f6;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                         <strong>Chunk Match #{idx + 1}</strong>
-                                        <span class="badge badge-success">Score: {chunk['score']:.4f}</span>
+                                        <span class="badge badge-success">Score: {chunk["score"]:.4f}</span>
                                     </div>
                                     <div style="background-color: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.95rem; line-height: 1.5;">
-                                        {chunk['text']}
+                                        {chunk["text"]}
                                     </div>
                                     <div style="margin-top: 10px; font-size: 0.85rem; color: #94a3b8;">
-                                        Document ID: {chunk['document_id']}
+                                        Document ID: {chunk["document_id"]}
                                     </div>
                                 </div>
                                 """,
@@ -469,91 +532,395 @@ with tab_search:
 # TAB 3: Interactive RAG Q&A Assistant Playground
 with tab_qa:
     st.subheader("Interactive Knowledge Assistant Playground")
-    st.write("Query the multi-tenant RAG pipeline and formulate structured reasoning answers.")
+    st.write(
+        "Engage in multi-turn conversation with the RAG assistant and manage chat sessions."
+    )
 
-    qa_question = st.text_input("Ask a question about the knowledge base:")
+    # Initialize chat session states
+    if "active_chat_session_id" not in st.session_state:
+        st.session_state.active_chat_session_id = None
 
+    # Retrieve parameters for RAG retrieval
     col_qlim, col_qth = st.columns(2)
     with col_qlim:
-        qa_limit = st.slider("Context chunks limit", min_value=1, max_value=20, value=5, key="qa_lim")
+        qa_limit = st.slider(
+            "Context chunks limit", min_value=1, max_value=20, value=5, key="qa_lim"
+        )
     with col_qth:
-        qa_threshold = st.slider("Similarity confidence threshold", min_value=0.0, max_value=1.0, value=0.3, step=0.05, key="qa_th")
+        qa_threshold = st.slider(
+            "Similarity confidence threshold",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.3,
+            step=0.05,
+            key="qa_th",
+        )
 
-    if st.button("Ask Assistant", type="primary"):
-        if not qa_question:
-            st.error("Please enter a question.")
+    st.markdown("---")
+
+    col_sessions, col_chat = st.columns([1, 3])
+
+    # 1. Chat Sessions Sidebar
+    with col_sessions:
+        st.markdown("### 💬 Chat Sessions")
+        if st.button("➕ New Chat Session", use_container_width=True, type="primary"):
+            try:
+                # Create session on API
+                new_sess_res = httpx.post(
+                    f"{API_URL}/chat/sessions",
+                    json={"title": "New Conversation"},
+                    headers=st.session_state.headers,
+                )
+                if new_sess_res.status_code == 201:
+                    new_sess = new_sess_res.json()
+                    st.session_state.active_chat_session_id = new_sess["id"]
+                    st.success("Created new session!")
+                    st.rerun()
+                else:
+                    st.error("Failed to create new chat session.")
+            except Exception as err:
+                st.error(f"Error creating session: {str(err)}")
+
+        # Fetch recent sessions
+        sessions = []
+        try:
+            sess_res = httpx.get(
+                f"{API_URL}/chat/sessions",
+                headers=st.session_state.headers,
+            )
+            if sess_res.status_code == 200:
+                sessions = sess_res.json()
+        except Exception:
+            pass
+
+        if not sessions:
+            st.info("No active chat sessions. Click above to start one.")
+        else:
+            st.markdown(
+                "<div style='max-height: 400px; overflow-y: auto;'>",
+                unsafe_allow_html=True,
+            )
+            for s in sessions:
+                s_id = s["id"]
+                s_title = s["title"]
+
+                # Active session highlighting using simple columns
+                col_btn, col_del = st.columns([4, 1])
+                with col_btn:
+                    # Highlight if active
+                    btn_label = f"💬 {s_title}"
+                    is_active = s_id == st.session_state.active_chat_session_id
+                    btn_type = "primary" if is_active else "secondary"
+                    if st.button(
+                        btn_label,
+                        key=f"sel_{s_id}",
+                        use_container_width=True,
+                        type=btn_type,
+                    ):
+                        st.session_state.active_chat_session_id = s_id
+                        st.rerun()
+                with col_del:
+                    if st.button("🗑️", key=f"del_sess_{s_id}", use_container_width=True):
+                        try:
+                            del_sess_res = httpx.delete(
+                                f"{API_URL}/chat/sessions/{s_id}",
+                                headers=st.session_state.headers,
+                            )
+                            if del_sess_res.status_code == 204:
+                                if st.session_state.active_chat_session_id == s_id:
+                                    st.session_state.active_chat_session_id = None
+                                st.success("Session deleted.")
+                                st.rerun()
+                        except Exception as err:
+                            st.error(f"Delete failed: {str(err)}")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # 🧠 Long-Term Memory Section
+        st.markdown("---")
+        with st.expander("🧠 Long-term User Memory"):
+            st.write(
+                "This memory is automatically compiled and persists across sessions."
+            )
+            try:
+                mem_res = httpx.get(
+                    f"{API_URL}/chat/memory", headers=st.session_state.headers
+                )
+                if mem_res.status_code == 200:
+                    mem_data = mem_res.json()["memory_data"]
+                    if not mem_data or (
+                        not mem_data.get("preferences")
+                        and not mem_data.get("extracted_facts")
+                    ):
+                        st.info("No long-term memory records found yet.")
+                    else:
+                        if mem_data.get("preferences"):
+                            st.write("**Preferences:**")
+                            st.json(mem_data["preferences"])
+                        if mem_data.get("extracted_facts"):
+                            st.write("**Extracted Facts:**")
+                            for fact in mem_data["extracted_facts"]:
+                                st.write(f"- {fact}")
+
+                        if st.button(
+                            "Reset Long-term Memory",
+                            use_container_width=True,
+                            type="secondary",
+                        ):
+                            clear_res = httpx.put(
+                                f"{API_URL}/chat/memory",
+                                json={},
+                                headers=st.session_state.headers,
+                            )
+                            if clear_res.status_code == 200:
+                                st.success("Memory cleared!")
+                                st.rerun()
+            except Exception as err:
+                st.error(f"Failed to load memory: {str(err)}")
+
+    # 2. Chat Feed Area
+    with col_chat:
+        active_id = st.session_state.active_chat_session_id
+        if not active_id:
+            st.markdown(
+                """
+                <div class="glass-card" style="text-align: center; padding: 3rem;">
+                    <h2>🤖 Welcome to the RAG Chat Assistant</h2>
+                    <p style="color: #94a3b8;">Select or create a chat session from the left menu to start discussing your knowledge base documents.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            # Fetch session detail containing message history
+            session_data = None
+            try:
+                detail_res = httpx.get(
+                    f"{API_URL}/chat/sessions/{active_id}",
+                    headers=st.session_state.headers,
+                )
+                if detail_res.status_code == 200:
+                    session_data = detail_res.json()
+            except Exception as err:
+                st.error(f"Could not load conversation history: {str(err)}")
+
+            if session_data:
+                # Session Title & Rename input
+                sess_title = session_data["title"]
+                col_title, col_ren = st.columns([3, 1])
+                with col_title:
+                    st.write(f"### Chat Topic: **{sess_title}**")
+                with col_ren:
+                    new_title_input = st.text_input(
+                        "Rename Topic",
+                        value=sess_title,
+                        key="rename_title_input",
+                        label_visibility="collapsed",
+                    )
+                    if new_title_input != sess_title:
+                        try:
+                            httpx.put(
+                                f"{API_URL}/chat/sessions/{active_id}",
+                                json={"title": new_title_input},
+                                headers=st.session_state.headers,
+                            )
+                            st.rerun()
+                        except Exception:
+                            pass
+
+                st.markdown(
+                    "<div style='border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 1.5rem;'></div>",
+                    unsafe_allow_html=True,
+                )
+
+                # Render Message history
+                for m in session_data["messages"]:
+                    role = m["role"]
+                    content = m["content"]
+
+                    with st.chat_message(role):
+                        st.markdown(content)
+
+                        # Render citations/sources if assistant message has them
+                        citations = m.get("citations")
+                        if role == "assistant" and citations:
+                            conf = m.get("confidence_score", 0.0) * 100
+                            with st.expander(
+                                f"📚 Source Citations (Confidence: {conf:.1f}%)"
+                            ):
+                                for idx, s in enumerate(citations):
+                                    st.markdown(
+                                        f"""
+                                        <div style="background-color: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border-left: 3px solid #3b82f6; margin-bottom: 8px;">
+                                            <span style="font-size: 0.8rem; color: #94a3b8;">Source #{idx + 1} | Score: {s["score"]:.4f}</span>
+                                            <p style="font-family: monospace; font-size: 0.85rem; margin: 4px 0 0 0;">{s["text"]}</p>
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
+
+                # User chat input
+                user_query = st.chat_input("Message RAG assistant...")
+                if user_query:
+                    # 1. Render User Message
+                    with st.chat_message("user"):
+                        st.markdown(user_query)
+
+                    # 2. Render Assistant Placeholder
+                    with st.chat_message("assistant"):
+                        answer_placeholder = st.empty()
+                        citations_placeholder = st.empty()
+
+                        # 3. Stream Response Chunks from API
+                        full_answer = ""
+                        citations = []
+                        confidence = 0.0
+
+                        try:
+                            # Start Streaming Request
+                            with httpx.stream(
+                                "POST",
+                                f"{API_URL}/chat/sessions/{active_id}/stream",
+                                json={
+                                    "message": user_query,
+                                    "limit": qa_limit,
+                                    "threshold": qa_threshold,
+                                },
+                                headers=st.session_state.headers,
+                                timeout=60.0,
+                            ) as response:
+                                if response.status_code != 200:
+                                    answer_placeholder.error(
+                                        "Error: Could not connect to RAG streaming API."
+                                    )
+                                else:
+                                    for line in response.iter_lines():
+                                        if line.startswith("data: "):
+                                            event = json.loads(line[6:])
+                                            event_type = event.get("type")
+
+                                            if event_type == "metadata":
+                                                citations = event.get("citations", [])
+                                                confidence = event.get(
+                                                    "confidence_score", 0.0
+                                                )
+                                            elif event_type == "token":
+                                                full_answer += event.get("content", "")
+                                                answer_placeholder.markdown(
+                                                    full_answer + "▌"
+                                                )
+                                            elif event_type == "done":
+                                                break
+
+                            # Final render without cursor
+                            answer_placeholder.markdown(full_answer)
+
+                            # Render Citations
+                            if citations:
+                                conf_pct = confidence * 100
+                                with citations_placeholder.expander(
+                                    f"📚 Source Citations (Confidence: {conf_pct:.1f}%)"
+                                ):
+                                    for idx, s in enumerate(citations):
+                                        st.markdown(
+                                            f"""
+                                            <div style="background-color: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border-left: 3px solid #3b82f6; margin-bottom: 8px;">
+                                                <span style="font-size: 0.8rem; color: #94a3b8;">Source #{idx + 1} | Score: {s["score"]:.4f}</span>
+                                                <p style="font-family: monospace; font-size: 0.85rem; margin: 4px 0 0 0;">{s["text"]}</p>
+                                            </div>
+                                            """,
+                                            unsafe_allow_html=True,
+                                        )
+
+                            # Rerun to synchronize with session history database state
+                            st.rerun()
+
+                        except Exception as err:
+                            answer_placeholder.error(f"Streaming failed: {str(err)}")
+
+# TAB 4: Specialist Research Agent Workspace
+with tab_research:
+    st.subheader("🔬 Specialist Research Agent Workspace")
+    st.write(
+        "Deploy the specialized tool-calling Research Agent to investigate vector "
+        "document chunks and synthesize facts."
+    )
+
+    research_topic = st.text_input(
+        "Describe your research goal (e.g. 'Compare HR increment rules'):",
+        key="research_topic_input",
+    )
+
+    if st.button("Launch Autonomous Investigation", type="primary"):
+        if not research_topic:
+            st.error("Please enter a research goal first.")
         else:
             try:
-                # Call POST /query RAG endpoint
-                query_payload = {
-                    "question": qa_question,
-                    "limit": qa_limit,
-                    "threshold": qa_threshold,
-                }
-                
-                with st.spinner("Retrieving matching document chunks and reasoning via PydanticAI..."):
-                    res_query = httpx.post(
-                        f"{API_URL}/documents/query",
-                        json=query_payload,
-                        headers=st.session_state.headers,
-                    )
-                    
-                    if res_query.status_code == 200:
-                        data = res_query.json()
-                        
-                        # Display Results
-                        st.write("### AI Response Answer")
-                        st.markdown(
-                            f"""
-                            <div class="glass-card" style="border-left: 4px solid #10b981;">
-                                <div style="font-size: 1.1rem; line-height: 1.6; color: #f1f5f9;">
-                                    {data['answer']}
-                                </div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                        
-                        # Display Metrics (Confidence Score & Sufficiency status)
-                        col_c1, col_c2 = st.columns(2)
-                        with col_c1:
-                            conf = data["confidence_score"] * 100
-                            st.metric(
-                                label="Self-Assessed Confidence Score",
-                                value=f"{conf:.1f}%",
-                                delta=None,
-                            )
-                        with col_c2:
-                            suff = "SUFFICIENT" if data["has_sufficient_context"] else "INSUFFICIENT"
-                            suff_cls = "badge-success" if data["has_sufficient_context"] else "badge-danger"
-                            st.write("**Context Sufficiency Status:**")
-                            st.markdown(
-                                f"<span class='badge {suff_cls}' style='font-size: 1.1rem; padding: 6px 12px;'>{suff}</span>",
-                                unsafe_allow_html=True,
-                            )
+                # We show status steps to mock step-by-step thinking for a premium user experience
+                status_box = st.status("🚀 Launching Research Agent...")
 
-                        # Display Sources List
-                        st.write("### Cited Source Context Chunks")
-                        sources = data.get("sources", [])
-                        if not sources:
-                            st.info("No sources were cited for this answer.")
-                        else:
-                            for idx, s in enumerate(sources):
-                                st.markdown(
-                                    f"""
-                                    <div class="glass-card" style="margin-top: 10px; padding: 12px;">
-                                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8; margin-bottom: 5px;">
-                                            <span><strong>Citation #{idx + 1}</strong></span>
-                                            <span class="badge badge-success">Similarity: {s['score']:.4f}</span>
-                                        </div>
-                                        <div style="font-family: monospace; font-size: 0.9rem; background-color: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px;">
-                                            {s['text']}
-                                        </div>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-                    else:
-                        st.error("Failed to query assistant. Please verify backend logs.")
+                with status_box:
+                    st.write("🔍 Activating tools and analyzing constraints...")
+                    time.sleep(0.5)
+                    st.write(
+                        "📖 Invoking `search_knowledge_base` to retrieve relevant document points..."
+                    )
+                    time.sleep(0.6)
+                    st.write(
+                        "🌐 Invoking `search_web` to collect industry standards and references..."
+                    )
+                    time.sleep(0.5)
+                    st.write(
+                        "💡 Running synthesis and compiling markdown detailed findings..."
+                    )
+
+                    # Make post request to agent endpoint
+                    res_agent = httpx.post(
+                        f"{API_URL}/agents/research",
+                        json={"query": research_topic},
+                        headers=st.session_state.headers,
+                        timeout=60.0,
+                    )
+
+                if res_agent.status_code == 200:
+                    status_box.update(
+                        label="✅ Investigation Completed Successfully!",
+                        state="complete",
+                    )
+                    data = res_agent.json()
+
+                    st.write("### Research Results Summary")
+                    st.markdown(
+                        f"""
+                        <div class="glass-card" style="border-left: 4px solid #818cf8;">
+                            <div style="font-size: 1.1rem; line-height: 1.6; color: #f1f5f9; font-weight: 500;">
+                                {data["summary"]}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        conf = data["confidence_score"] * 100
+                        st.metric("Self-Assessed Confidence rating", f"{conf:.1f}%")
+                    with col_m2:
+                        st.write("**Citations Count:**")
+                        cited_cnt = len(data.get("sources_cited", []))
+                        st.info(f"{cited_cnt} Source points referenced.")
+
+                    st.write("### Detailed Findings")
+                    st.markdown(data["detailed_findings"])
+
+                    if data.get("sources_cited"):
+                        st.write("### Cited Source ID References")
+                        for src in data["sources_cited"]:
+                            st.code(src, language="text")
+                else:
+                    status_box.update(label="❌ Investigation Failed", state="error")
+                    st.error(
+                        f"Agent failed to execute. Status code: {res_agent.status_code}"
+                    )
             except Exception as err:
-                st.error(f"Reasoning query request failed: {str(err)}")
+                status_box.update(label="❌ Connection Error", state="error")
+                st.error(f"Request failed: {str(err)}")

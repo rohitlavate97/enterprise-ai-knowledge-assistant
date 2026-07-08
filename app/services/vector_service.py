@@ -38,9 +38,7 @@ class VectorService:
             exists = any(c.name == self.collection_name for c in collections)
 
             if not exists:
-                logger.info(
-                    "Creating Qdrant collection: %s", self.collection_name
-                )
+                logger.info("Creating Qdrant collection: %s", self.collection_name)
                 qdrant_client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=VectorParams(
@@ -50,9 +48,7 @@ class VectorService:
                 )
             self._collection_initialized = True
         except Exception as err:
-            logger.error(
-                "Failed to initialize Qdrant collection: %s", str(err)
-            )
+            logger.error("Failed to initialize Qdrant collection: %s", str(err))
             raise
 
     def index_document_chunks(
@@ -74,9 +70,7 @@ class VectorService:
 
         # 2. Prepare points
         points = []
-        for i, (chunk, vector) in enumerate(
-            zip(chunks, embeddings, strict=True)
-        ):
+        for i, (chunk, vector) in enumerate(zip(chunks, embeddings, strict=True)):
             point_id = str(uuid4())
             payload = {
                 "document_id": str(doc_id),
@@ -86,15 +80,11 @@ class VectorService:
                 "department_id": str(department_id) if department_id else None,
                 "team_id": str(team_id) if team_id else None,
             }
-            points.append(
-                PointStruct(id=point_id, vector=vector, payload=payload)
-            )
+            points.append(PointStruct(id=point_id, vector=vector, payload=payload))
 
         # 3. Upsert points into Qdrant
         logger.info("Upserting %d points for document %s", len(points), doc_id)
-        qdrant_client.upsert(
-            collection_name=self.collection_name, points=points
-        )
+        qdrant_client.upsert(collection_name=self.collection_name, points=points)
 
     def delete_document_points(self, doc_id: UUID) -> None:
         """Remove all indexed vector points associated with a specific document."""
@@ -158,12 +148,8 @@ class VectorService:
                 "id": r.id,
                 "score": r.score,
                 "text": r.payload.get("text") if r.payload else "",
-                "document_id": r.payload.get("document_id")
-                if r.payload
-                else "",
-                "department_id": r.payload.get("department_id")
-                if r.payload
-                else None,
+                "document_id": r.payload.get("document_id") if r.payload else "",
+                "department_id": r.payload.get("department_id") if r.payload else None,
                 "team_id": r.payload.get("team_id") if r.payload else None,
             }
             for r in results

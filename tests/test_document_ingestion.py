@@ -34,9 +34,7 @@ def test_text_chunker_boundary_preservation() -> None:
 def test_text_chunker_overlap() -> None:
     """Test chunker correctly implements sliding window overlaps."""
     text = (
-        "Paragraph one of text.\n\n"
-        "Paragraph two of text.\n\n"
-        "Paragraph three of text."
+        "Paragraph one of text.\n\nParagraph two of text.\n\nParagraph three of text."
     )
     chunks = chunk_text(text, chunk_size=35, chunk_overlap=15)
     assert len(chunks) > 1

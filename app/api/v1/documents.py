@@ -270,7 +270,6 @@ async def delete_document(
                 str(err),
             )
 
-
     vector_service.delete_document_points(doc_id)
 
     # Remove database record

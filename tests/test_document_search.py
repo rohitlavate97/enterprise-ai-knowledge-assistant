@@ -39,9 +39,7 @@ async def test_end_to_end_tenant_scoped_search(  # noqa: PLR0915
 ) -> None:
     """Test uploading documents across different departments and verifying scoping."""
     # 1. Create Departments
-    dept_hr_in = DepartmentCreate(
-        name="Human Resources", description="HR Department"
-    )
+    dept_hr_in = DepartmentCreate(name="Human Resources", description="HR Department")
     dept_hr = await department_repo.create(db, dept_hr_in)
 
     dept_eng_in = DepartmentCreate(
@@ -88,9 +86,7 @@ async def test_end_to_end_tenant_scoped_search(  # noqa: PLR0915
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Get Auth tokens
-        hr_headers = await get_auth_headers(
-            client, "hr@enterprise.com", "password123"
-        )
+        hr_headers = await get_auth_headers(client, "hr@enterprise.com", "password123")
         eng_headers = await get_auth_headers(
             client, "eng@enterprise.com", "password123"
         )
@@ -101,8 +97,7 @@ async def test_end_to_end_tenant_scoped_search(  # noqa: PLR0915
         # 3. Upload HR Document
         settings.UPLOAD_DIR = "storage/test_search_documents"
         hr_file_content = (
-            b"The standard salary increment for HR employees "
-            b"is 5 percent annually."
+            b"The standard salary increment for HR employees is 5 percent annually."
         )
         hr_file_data = {
             "file": (
@@ -132,8 +127,7 @@ async def test_end_to_end_tenant_scoped_search(  # noqa: PLR0915
 
         # 4. Upload Engineering Document
         eng_file_content = (
-            b"The production deployment branch is main. "
-            b"Deploy only after tests pass."
+            b"The production deployment branch is main. Deploy only after tests pass."
         )
         eng_file_data = {
             "file": (
@@ -214,8 +208,7 @@ async def test_end_to_end_tenant_scoped_search(  # noqa: PLR0915
         )
         assert res_search_admin_hr.status_code == status.HTTP_200_OK
         assert all(
-            UUID(r["document_id"]) == doc_hr_id
-            for r in res_search_admin_hr.json()
+            UUID(r["document_id"]) == doc_hr_id for r in res_search_admin_hr.json()
         )
 
         # Clean up files on disk and Qdrant points

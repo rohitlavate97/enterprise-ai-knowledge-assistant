@@ -44,9 +44,7 @@ async def test_end_to_end_rag_query(
     Covers retrieval scoping, empty handling, and structured agent answers.
     """
     # 1. Create Departments
-    dept_hr_in = DepartmentCreate(
-        name="Human Resources", description="HR Department"
-    )
+    dept_hr_in = DepartmentCreate(name="Human Resources", description="HR Department")
     dept_hr = await department_repo.create(db, dept_hr_in)
 
     dept_eng_in = DepartmentCreate(
@@ -92,8 +90,7 @@ async def test_end_to_end_rag_query(
         # 3. Upload HR Document
         settings.UPLOAD_DIR = "storage/test_rag_documents"
         hr_file_content = (
-            b"The standard salary increment for HR employees "
-            b"is 5 percent annually."
+            b"The standard salary increment for HR employees is 5 percent annually."
         )
         hr_file_data = {
             "file": (
@@ -145,8 +142,7 @@ async def test_end_to_end_rag_query(
             assert query_hr_data["has_sufficient_context"] is True
             assert len(query_hr_data["sources"]) > 0
             assert all(
-                UUID(s["document_id"]) == doc_hr_id
-                for s in query_hr_data["sources"]
+                UUID(s["document_id"]) == doc_hr_id for s in query_hr_data["sources"]
             )
 
         # 5. RAG Query as Engineering staff (HR doc scoped out, should fail)

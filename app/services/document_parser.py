@@ -13,15 +13,13 @@ async def extract_text(file_path: Path, mime_type: str) -> str:
     if not file_path.exists():
         raise FileNotFoundError(f"File not found at: {file_path}")
 
-    logger.info(
-        "Extracting text from: %s (MIME: %s)", file_path.name, mime_type
-    )
+    logger.info("Extracting text from: %s (MIME: %s)", file_path.name, mime_type)
 
     # 1. Plain Text or Markdown
-    if (
-        mime_type in {"text/plain", "text/markdown"}
-        or file_path.suffix in {".txt", ".md"}
-    ):
+    if mime_type in {"text/plain", "text/markdown"} or file_path.suffix in {
+        ".txt",
+        ".md",
+    }:
         try:
             with file_path.open("r", encoding="utf-8") as f:
                 return f.read()
@@ -45,9 +43,7 @@ async def extract_text(file_path: Path, mime_type: str) -> str:
                     )
             return "\n\n".join(text_pages)
         except Exception as err:
-            raise ValueError(
-                f"Failed to parse PDF document: {str(err)}"
-            ) from err
+            raise ValueError(f"Failed to parse PDF document: {str(err)}") from err
 
     # 3. Unsupported MIME types
     else:

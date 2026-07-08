@@ -49,7 +49,6 @@ async def process_document_task(
                 db_doc.filename,
             )
 
-
             vector_service.index_document_chunks(
                 doc_id=db_doc.id,
                 chunks=chunks,
@@ -62,9 +61,7 @@ async def process_document_task(
             )
 
             # 4. Update status to 'completed'
-            await document_service.update_document_status(
-                db, doc_id, "completed"
-            )
+            await document_service.update_document_status(db, doc_id, "completed")
             logger.info("Document %s processing successfully completed", doc_id)
 
         except Exception as e:

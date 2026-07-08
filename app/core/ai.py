@@ -57,3 +57,14 @@ assistant_agent = Agent(
         "information, set has_sufficient_context to False."
     ),
 )
+
+# Instantiate the streaming chat agent for interactive conversations
+chat_agent = Agent(
+    ai_model,
+    system_prompt=(
+        "You are an enterprise AI knowledge assistant. "
+        "Formulate a detailed, professional answer using the provided "
+        "document context chunks and the conversation history. "
+        "Maintain a helpful, professional, and concise tone."
+    ),
+)

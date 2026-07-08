@@ -19,9 +19,7 @@ class EmbeddingService:
     def model(self) -> SentenceTransformer:
         """Lazy-loaded SentenceTransformer instance."""
         if self._model is None:
-            logger.info(
-                "Loading SentenceTransformer model: %s", self.model_name
-            )
+            logger.info("Loading SentenceTransformer model: %s", self.model_name)
             self._model = SentenceTransformer(self.model_name)
         return self._model
 

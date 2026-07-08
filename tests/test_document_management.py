@@ -50,9 +50,7 @@ async def test_document_upload_and_processing_flow(db: AsyncSession) -> None:
 
         # 2. Upload file
         file_content = b"This is a test document containing text for parsing."
-        file_data = {
-            "file": ("test_doc.txt", io.BytesIO(file_content), "text/plain")
-        }
+        file_data = {"file": ("test_doc.txt", io.BytesIO(file_content), "text/plain")}
 
         # Override upload directory config to point to a test subfolder
         settings.UPLOAD_DIR = "storage/test_documents"
@@ -86,9 +84,7 @@ async def test_document_upload_and_processing_flow(db: AsyncSession) -> None:
         assert len(res.json()) >= 1
 
         # 6. Delete document
-        res = await client.delete(
-            f"/api/v1/documents/{doc_id}", headers=auth_headers
-        )
+        res = await client.delete(f"/api/v1/documents/{doc_id}", headers=auth_headers)
         assert res.status_code == status.HTTP_204_NO_CONTENT
 
         # 7. Check physical file and DB record are deleted

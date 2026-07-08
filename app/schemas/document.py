@@ -76,5 +76,3 @@ class QueryResponse(BaseModel):
     has_sufficient_context: bool
     confidence_score: float
     sources: list[SearchResultResponse]
-
-

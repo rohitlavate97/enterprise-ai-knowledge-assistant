@@ -22,9 +22,7 @@ else:
         qdrant_client = QdrantClient(
             host=settings.QDRANT_HOST,
             port=settings.QDRANT_PORT,
-            api_key=settings.QDRANT_API_KEY
-            if settings.QDRANT_API_KEY
-            else None,
+            api_key=settings.QDRANT_API_KEY if settings.QDRANT_API_KEY else None,
             timeout=5,
         )
     except Exception as err:
