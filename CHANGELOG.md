@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Created the specialist `document_agent` in `app/services/document_agent.py` utilizing the PydanticAI model framework.
+- Built MCP-ready tools for the Document Agent (`list_my_documents`, `get_document_info`, `check_document_status`, `delete_document`) to query, inspect status, and safely block document deletion requests.
+- Exposed POST endpoint `/api/v1/agents/document` in `app/api/v1/agents.py` with structured output schema validation.
+- Created "AI Document Agent" workspace tab in Streamlit, displaying suggestion presets, step-by-step thinking status indicators, and rendering structured markdown document lists and detail findings.
+- Wrote unit and integration test suite `tests/test_document_agent.py` verifying tool access scoping, API endpoints, and mock outputs.
 - Created the specialist `research_agent` in `app/services/research_agent.py` utilizing the PydanticAI model framework.
 - Built MCP-ready tools for the Research Agent (`search_knowledge_base`, `read_document_chunk`, `search_web`) to query vector databases and mock web search while enforcing multi-tenant isolation.
 - Exposed POST endpoint `/api/v1/agents/research` in `app/api/v1/agents.py` with structured output schema validation.

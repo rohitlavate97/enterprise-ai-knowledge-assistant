@@ -252,14 +252,16 @@ if not st.session_state.token:
 
 
 # Main Application Interface (Only reachable when authenticated)
-tab_docs, tab_search, tab_qa, tab_research = st.tabs(
+tab_docs, tab_search, tab_qa, tab_research, tab_doc_agent = st.tabs(
     [
         "📁 Knowledge Documents",
         "🔍 Semantic Search",
         "💬 AI RAG Q&A Assistant",
         "🔬 AI Research Agent",
+        "📄 AI Document Agent",
     ]
 )
+
 
 # Fetch current departments & teams for dynamic dropdown selection
 departments = []
@@ -918,6 +920,126 @@ with tab_research:
                             st.code(src, language="text")
                 else:
                     status_box.update(label="❌ Investigation Failed", state="error")
+                    st.error(
+                        f"Agent failed to execute. Status code: {res_agent.status_code}"
+                    )
+            except Exception as err:
+                status_box.update(label="❌ Connection Error", state="error")
+                st.error(f"Request failed: {str(err)}")
+
+
+# TAB 5: Specialist Document Agent Workspace
+with tab_doc_agent:
+    st.subheader("📄 Specialist Document Agent Workspace")
+    st.write(
+        "Deploy the specialized tool-calling Document Agent to query metadata, "
+        "inspect ingestion status, and manage the lifecycle of corporate documents."
+    )
+
+    st.write("### Preset Suggestion Queries")
+
+    preset_query = None
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        if st.button("📋 List Documents", key="btn_list_docs"):
+            preset_query = "List all my documents"
+    with col2:
+        if st.button("🔍 Check Ingestion Status", key="btn_status_docs"):
+            preset_query = "What is the status of 'HR Guidelines.txt'?"
+    with col3:
+        if st.button("ℹ️ Get Document Info", key="btn_info_docs"):
+            preset_query = "Show details for 'HR Guidelines.txt'"
+    with col4:
+        if st.button("❌ Request Deletion", key="btn_del_docs"):
+            preset_query = "Delete document 'ENG Spec.txt'"
+
+    if preset_query:
+        st.session_state.doc_agent_query = preset_query
+        st.rerun()
+
+    doc_query = st.text_input(
+        "Describe your query or command (e.g. 'List my documents'):",
+        value=st.session_state.get("doc_agent_query", ""),
+        key="doc_agent_query_input",
+    )
+    st.session_state.doc_agent_query = doc_query
+
+    if st.button("Deploy Document Agent", type="primary", key="btn_deploy_doc_agent"):
+        if not doc_query:
+            st.error("Please enter a query or select a preset first.")
+        else:
+            try:
+                # We show status steps to mock step-by-step thinking for a premium user experience
+                status_box = st.status(
+                    "🚀 Deploying Document Agent...", key="status_doc_agent"
+                )
+
+                with status_box:
+                    st.write("🔒 Resolving user role and department permissions...")
+                    time.sleep(0.5)
+                    st.write("📂 Invoking tools to inspect repository databases...")
+                    time.sleep(0.6)
+                    st.write("⚙️ Formatting structured response...")
+                    time.sleep(0.4)
+
+                    # Make post request to agent endpoint
+                    res_agent = httpx.post(
+                        f"{API_URL}/agents/document",
+                        json={"query": doc_query},
+                        headers=st.session_state.headers,
+                        timeout=60.0,
+                    )
+
+                if res_agent.status_code == 200:
+                    status_box.update(
+                        label="✅ Document Agent Operation Completed!",
+                        state="complete",
+                    )
+                    data = res_agent.json()
+
+                    st.write("### Operation Summary")
+                    st.markdown(
+                        f"""
+                        <div class="glass-card" style="border-left: 4px solid #10b981;">
+                            <div style="font-size: 1.1rem; line-height: 1.6; color: #f1f5f9; font-weight: 500;">
+                                {data["response_summary"]}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        status_color = (
+                            "#10b981"
+                            if data["operation_status"] == "success"
+                            else "#f59e0b"
+                        )
+                        st.markdown(
+                            f"""
+                            <div style="padding: 10px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
+                                <strong>Operation Status:</strong> 
+                                <span style="color: {status_color}; font-weight: bold; text-transform: uppercase;">
+                                    {data["operation_status"]}
+                                </span>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                    with col_m2:
+                        referenced_cnt = len(data.get("documents_referenced", []))
+                        st.metric("Referenced Documents", f"{referenced_cnt}")
+
+                    st.write("### Detailed Information")
+                    st.markdown(data["document_details"])
+
+                    if data.get("documents_referenced"):
+                        st.write("### Referenced Document IDs")
+                        for ref in data["documents_referenced"]:
+                            st.code(ref, language="text")
+                else:
+                    status_box.update(label="❌ Operation Failed", state="error")
                     st.error(
                         f"Agent failed to execute. Status code: {res_agent.status_code}"
                     )

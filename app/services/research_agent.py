@@ -32,14 +32,12 @@ class ResearchAgentResponse(BaseModel):
     )
     detailed_findings: str = Field(
         description=(
-            "Detailed analysis of findings structured "
-            "professionally in Markdown."
+            "Detailed analysis of findings structured professionally in Markdown."
         )
     )
     sources_cited: list[str] = Field(
         description=(
-            "List of document IDs or point IDs cited "
-            "as sources in this research."
+            "List of document IDs or point IDs cited as sources in this research."
         )
     )
     confidence_score: float = Field(
