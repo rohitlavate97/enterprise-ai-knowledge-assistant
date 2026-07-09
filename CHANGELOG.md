@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Created the central `coordinator_graph` in `app/services/coordinator_agent.py` using LangGraph to orchestrate routing decisions.
+- Created `router_agent` and `direct_agent` in PydanticAI to dynamically classify user queries and handle greetings directly.
+- Exposed POST endpoint `/api/v1/agents/coordinator` in `app/api/v1/agents.py` with structured output schema validation.
+- Created "Central Coordinator" workspace tab in Streamlit, displaying step-by-step thinking indicators, routing badges, routing reason, and final compiled markdown answers.
+- Wrote unit and integration test suite `tests/test_coordinator_agent.py` verifying LangGraph routing flows (to research, document, and direct agents) and API response contracts.
 - Created the specialist `document_agent` in `app/services/document_agent.py` utilizing the PydanticAI model framework.
 - Built MCP-ready tools for the Document Agent (`list_my_documents`, `get_document_info`, `check_document_status`, `delete_document`) to query, inspect status, and safely block document deletion requests.
 - Exposed POST endpoint `/api/v1/agents/document` in `app/api/v1/agents.py` with structured output schema validation.

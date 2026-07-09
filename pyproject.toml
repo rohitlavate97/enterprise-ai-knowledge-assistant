@@ -39,6 +39,7 @@ force-wrap-aliases = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "frontend/*" = ["E501", "PLR2004", "PLR0915", "PLR0912", "C901"]
+"tests/*" = ["PLR2004"]
 
 [tool.mypy]
 python_version = "3.13"

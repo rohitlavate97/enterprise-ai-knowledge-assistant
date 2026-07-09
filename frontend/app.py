@@ -252,13 +252,14 @@ if not st.session_state.token:
 
 
 # Main Application Interface (Only reachable when authenticated)
-tab_docs, tab_search, tab_qa, tab_research, tab_doc_agent = st.tabs(
+tab_docs, tab_search, tab_qa, tab_research, tab_doc_agent, tab_coordinator = st.tabs(
     [
         "📁 Knowledge Documents",
         "🔍 Semantic Search",
         "💬 AI RAG Q&A Assistant",
         "🔬 AI Research Agent",
         "📄 AI Document Agent",
+        "🤖 Central Coordinator",
     ]
 )
 
@@ -1046,3 +1047,148 @@ with tab_doc_agent:
             except Exception as err:
                 status_box.update(label="❌ Connection Error", state="error")
                 st.error(f"Request failed: {str(err)}")
+
+
+# TAB 6: Multi-Agent Coordinator Workspace
+with tab_coordinator:
+    st.subheader("🤖 Central Multi-Agent Coordinator Workspace")
+    st.write(
+        "Deploy the central Coordinator Agent powered by LangGraph. "
+        "The Coordinator dynamically analyzes your request, routes it to the "
+        "most suitable specialist agent (Research or Document Agent), and "
+        "synthesizes a final, unified response."
+    )
+
+    st.write("### Preset Routing Queries")
+
+    preset_coord_query = None
+    col_c1, col_c2, col_c3 = st.columns(3)
+    with col_c1:
+        if st.button("🔬 Research: wellness benefits", key="btn_coord_res"):
+            preset_coord_query = (
+                "Compare wellness program benefits against standard guidelines"
+            )
+    with col_c2:
+        if st.button("📄 Document: list files", key="btn_coord_doc"):
+            preset_coord_query = "List all my uploaded files"
+    with col_c3:
+        if st.button("💬 Chat: general hello", key="btn_coord_dir"):
+            preset_coord_query = "Hello Coordinator! Tell me what you can do."
+
+    if preset_coord_query:
+        st.session_state.coord_agent_query = preset_coord_query
+        st.rerun()
+
+    coord_query = st.text_input(
+        "Enter your query or command for the coordinator:",
+        value=st.session_state.get("coord_agent_query", ""),
+        key="coord_agent_query_input",
+    )
+    st.session_state.coord_agent_query = coord_query
+
+    if st.button(
+        "Deploy Central Coordinator",
+        type="primary",
+        key="btn_deploy_coordinator",
+    ):
+        if not coord_query:
+            st.error("Please enter a query or select a preset first.")
+        else:
+            try:
+                # We show status steps to show dynamic routing feedback
+                status_box = st.status(
+                    "🤖 Deploying Coordinator Agent...", key="status_coordinator"
+                )
+
+                with status_box:
+                    st.write("🧠 Contacting Central Coordinator...")
+                    time.sleep(0.4)
+                    st.write(
+                        "🔀 Running LLM routing logic to determine target specialist..."
+                    )
+                    time.sleep(0.5)
+                    st.write(
+                        "📡 Delegating to specialist node and compiling findings..."
+                    )
+                    time.sleep(0.6)
+
+                    # Make post request to agent endpoint
+                    res_agent = httpx.post(
+                        f"{API_URL}/agents/coordinator",
+                        json={"query": coord_query},
+                        headers=st.session_state.headers,
+                        timeout=60.0,
+                    )
+
+                if res_agent.status_code == 200:
+                    status_box.update(
+                        label="✅ Coordinator Routing and Execution Successful!",
+                        state="complete",
+                    )
+                    data = res_agent.json()
+
+                    st.write("### Routing Result")
+                    agent_badge = (
+                        "🔬 Research Agent"
+                        if data["selected_agent"] == "research"
+                        else (
+                            "📄 Document Agent"
+                            if data["selected_agent"] == "document"
+                            else "💬 Direct (Coordinator)"
+                        )
+                    )
+
+                    st.markdown(
+                        f"""
+                        <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
+                            <div style="padding: 10px 20px; border-radius: 8px; background-color: rgba(129, 140, 248, 0.15); border: 1px solid rgba(129, 140, 248, 0.3);">
+                                <strong>Selected Node:</strong> <span style="color: #818cf8; font-weight: bold;">{agent_badge}</span>
+                            </div>
+                            <div style="font-style: italic; color: #94a3b8; font-size: 0.95rem;">
+                                &ldquo;{data["routing_reason"]}&rdquo;
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    st.write("### Unified Answer Summary")
+                    st.markdown(
+                        f"""
+                        <div class="glass-card" style="border-left: 4px solid #818cf8;">
+                            <div style="font-size: 1.1rem; line-height: 1.6; color: #f1f5f9; font-weight: 500;">
+                                {data["summary"]}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    st.write("### Detailed Findings")
+                    st.markdown(data["detailed_findings"])
+
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        conf = data["confidence_score"] * 100
+                        st.metric("Overall Confidence", f"{conf:.1f}%")
+                    with col_m2:
+                        referenced_cnt = len(
+                            data.get("documents_referenced", [])
+                        )
+                        st.metric("Cited Documents", f"{referenced_cnt}")
+
+                    if data.get("documents_referenced"):
+                        st.write("### Referenced Document IDs / Source points")
+                        for ref in data["documents_referenced"]:
+                            st.code(ref, language="text")
+                else:
+                    status_box.update(
+                        label="❌ Orchestration Failed", state="error"
+                    )
+                    st.error(
+                        f"Coordinator failed to execute. Status code: {res_agent.status_code}"
+                    )
+            except Exception as err:
+                status_box.update(label="❌ Connection Error", state="error")
+                st.error(f"Request failed: {str(err)}")
+

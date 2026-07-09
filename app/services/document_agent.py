@@ -31,8 +31,7 @@ class DocumentAgentResponse(BaseModel):
 
     response_summary: str = Field(
         description=(
-            "A concise summary of the document operations "
-            "or status checks performed."
+            "A concise summary of the document operations or status checks performed."
         )
     )
     document_details: str = Field(
@@ -43,8 +42,7 @@ class DocumentAgentResponse(BaseModel):
     )
     documents_referenced: list[str] = Field(
         description=(
-            "List of document IDs or filenames processed, "
-            "retrieved, or checked."
+            "List of document IDs or filenames processed, retrieved, or checked."
         )
     )
     operation_status: str = Field(
@@ -131,9 +129,7 @@ async def list_my_documents(ctx: RunContext[AgentDeps], limit: int = 50) -> str:
 
 
 @document_agent.tool
-async def get_document_info(
-    ctx: RunContext[AgentDeps], filename_or_id: str
-) -> str:
+async def get_document_info(ctx: RunContext[AgentDeps], filename_or_id: str) -> str:
     """Retrieve detailed metadata for a specific document by its title, filename, or ID.
 
     Args:
@@ -145,9 +141,7 @@ async def get_document_info(
     """
     user = ctx.deps.current_user
     db = ctx.deps.db
-    logger.info(
-        "Document Agent: Retrieving document info for: %s", filename_or_id
-    )
+    logger.info("Document Agent: Retrieving document info for: %s", filename_or_id)
 
     doc_id = None
     with contextlib.suppress(ValueError):
@@ -157,8 +151,7 @@ async def get_document_info(
         stmt = select(Document).where(Document.id == doc_id)
     else:
         stmt = select(Document).where(
-            (Document.title == filename_or_id)
-            | (Document.filename == filename_or_id)
+            (Document.title == filename_or_id) | (Document.filename == filename_or_id)
         )
 
     try:
@@ -168,13 +161,8 @@ async def get_document_info(
             return f"Document '{filename_or_id}' not found."
 
         # Enforce multi-tenant scoping
-        if (
-            user.role != UserRole.ADMIN
-            and doc.department_id != user.department_id
-        ):
-            return (
-                "Error: Access denied. Document is outside your department scope."
-            )
+        if user.role != UserRole.ADMIN and doc.department_id != user.department_id:
+            return "Error: Access denied. Document is outside your department scope."
 
         return (
             f"Document ID: {doc.id}\n"
@@ -193,9 +181,7 @@ async def get_document_info(
 
 
 @document_agent.tool
-async def check_document_status(
-    ctx: RunContext[AgentDeps], filename_or_id: str
-) -> str:
+async def check_document_status(ctx: RunContext[AgentDeps], filename_or_id: str) -> str:
     """Check the ingestion or processing status of a specific document.
 
     Args:
@@ -217,8 +203,7 @@ async def check_document_status(
         stmt = select(Document).where(Document.id == doc_id)
     else:
         stmt = select(Document).where(
-            (Document.title == filename_or_id)
-            | (Document.filename == filename_or_id)
+            (Document.title == filename_or_id) | (Document.filename == filename_or_id)
         )
 
     try:
@@ -228,13 +213,8 @@ async def check_document_status(
             return f"Document '{filename_or_id}' not found."
 
         # Enforce multi-tenant scoping
-        if (
-            user.role != UserRole.ADMIN
-            and doc.department_id != user.department_id
-        ):
-            return (
-                "Error: Access denied. Document is outside your department scope."
-            )
+        if user.role != UserRole.ADMIN and doc.department_id != user.department_id:
+            return "Error: Access denied. Document is outside your department scope."
 
         return (
             f"Document Title: {doc.title}\n"
@@ -247,9 +227,7 @@ async def check_document_status(
 
 
 @document_agent.tool
-async def delete_document(
-    ctx: RunContext[AgentDeps], filename_or_id: str
-) -> str:
+async def delete_document(ctx: RunContext[AgentDeps], filename_or_id: str) -> str:
     """Request deletion of a document from the system.
 
     Args:
@@ -271,8 +249,7 @@ async def delete_document(
         stmt = select(Document).where(Document.id == doc_id)
     else:
         stmt = select(Document).where(
-            (Document.title == filename_or_id)
-            | (Document.filename == filename_or_id)
+            (Document.title == filename_or_id) | (Document.filename == filename_or_id)
         )
 
     try:
@@ -282,13 +259,8 @@ async def delete_document(
             return f"Document '{filename_or_id}' not found."
 
         # Enforce multi-tenant scoping
-        if (
-            user.role != UserRole.ADMIN
-            and doc.department_id != user.department_id
-        ):
-            return (
-                "Error: Access denied. Document is outside your department scope."
-            )
+        if user.role != UserRole.ADMIN and doc.department_id != user.department_id:
+            return "Error: Access denied. Document is outside your department scope."
 
         # Since Human-in-the-Loop Gating is not yet implemented
         # (scheduled in a future milestone), all deletion actions are blocked.
