@@ -10,6 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
+from app.services.coordinator_agent import (
+    CoordinatorResponse,
+    CoordinatorState,
+    coordinator_graph,
+)
 from app.services.document_agent import (
     AgentDeps as DocumentAgentDeps,
     DocumentAgentResponse,
@@ -36,6 +41,14 @@ class DocumentAgentRequest(BaseModel):
 
     query: str = Field(
         min_length=1, description="Command or query for the Document Agent."
+    )
+
+
+class CoordinatorRequest(BaseModel):
+    """Schema representing request query/command for the Coordinator Agent."""
+
+    query: str = Field(
+        min_length=1, description="Command or query for the Coordinator Agent."
     )
 
 
@@ -84,4 +97,41 @@ async def run_document_agent(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Document Agent failed: {str(err)}",
+        ) from err
+
+
+@router.post("/coordinator", response_model=CoordinatorResponse)
+async def run_coordinator_agent(
+    request: CoordinatorRequest,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Any:
+    """Execute the Coordinator Agent LangGraph workflow to route queries."""
+    logger.info(
+        "Executing Coordinator Agent for user=%s, query='%s'",
+        current_user.email,
+        request.query,
+    )
+    initial_state: CoordinatorState = {
+        "query": request.query,
+        "db": db,
+        "current_user": current_user,
+        "next_agent": "",
+        "routing_reason": "",
+        "output": None,
+    }
+    try:
+        final_state = await coordinator_graph.ainvoke(initial_state)
+        output = final_state.get("output")
+        if not output:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Coordinator Agent failed to produce an output state.",
+            )
+        return output
+    except Exception as err:
+        logger.error("Coordinator Agent execution failed: %s", str(err))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Coordinator Agent failed: {str(err)}",
         ) from err
