@@ -8,6 +8,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.departments import router as departments_router
 from app.api.v1.documents import router as documents_router
+from app.api.v1.notifications import router as notifications_router
 from app.api.v1.teams import router as teams_router
 from app.api.v1.users import router as users_router
 from app.api.v1.workflows import router as workflows_router
@@ -22,3 +23,4 @@ api_router.include_router(chat_router)
 api_router.include_router(agents_router)
 api_router.include_router(workflows_router)
 api_router.include_router(approvals_router)
+api_router.include_router(notifications_router)

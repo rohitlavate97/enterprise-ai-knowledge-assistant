@@ -262,6 +262,7 @@ if not st.session_state.token:
     tab_coordinator,
     tab_workflows,
     tab_approvals,
+    tab_notifications,
 ) = st.tabs(
     [
         "📁 Knowledge Documents",
@@ -272,8 +273,28 @@ if not st.session_state.token:
         "🤖 Central Coordinator",
         "⚙️ Workflow Engine",
         "✅ Approvals Gate",
+        "🔔 Notifications Hub",
     ]
 )
+
+# Toast Alert Polling for New Unread Notifications
+if "toasted_ids" not in st.session_state:
+    st.session_state.toasted_ids = set()
+
+try:
+    unread_res = httpx.get(
+        f"{API_URL}/notifications/?unread_only=true",
+        headers=st.session_state.headers,
+    )
+    if unread_res.status_code == 200:
+        unread_notifs = unread_res.json()
+        for notif in unread_notifs:
+            notif_id = notif["id"]
+            if notif_id not in st.session_state.toasted_ids:
+                st.toast(f"🔔 **{notif['title']}**\n{notif['message']}")
+                st.session_state.toasted_ids.add(notif_id)
+except Exception:
+    pass
 
 
 # Fetch current departments & teams for dynamic dropdown selection
@@ -1634,6 +1655,116 @@ with tab_approvals:
         else:
             st.error(
                 f"Failed to load approval requests. Status code: {app_res.status_code}"
+            )
+    except Exception as err:
+        st.error(f"Connection failed: {str(err)}")
+
+
+# TAB 9: Notifications Hub
+with tab_notifications:
+    st.subheader("🔔 Personal Notifications Hub")
+    st.write(
+        "Track status updates, system events, and administrative actions assigned to you."
+    )
+
+    # Mark All as Read button
+    col_clear, col_space = st.columns([1, 4])
+    with col_clear:
+        if st.button("Read All Alerts", type="secondary", use_container_width=True):
+            try:
+                clear_res = httpx.post(
+                    f"{API_URL}/notifications/read-all",
+                    headers=st.session_state.headers,
+                )
+                if clear_res.status_code == 200:
+                    st.success("All alerts marked as read.")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error(f"Failed to clear alerts: {clear_res.text}")
+            except Exception as err:
+                st.error(f"Clear request failed: {str(err)}")
+
+    st.markdown("<br/>", unsafe_allow_html=True)
+
+    try:
+        # Fetch notifications
+        notif_res = httpx.get(
+            f"{API_URL}/notifications/", headers=st.session_state.headers
+        )
+        if notif_res.status_code == 200:
+            notifs = notif_res.json()
+            if not notifs:
+                st.info("No notifications found.")
+            else:
+                for notif in notifs:
+                    notif_id = notif["id"]
+                    is_read = notif["is_read"]
+                    title = notif["title"]
+                    msg = notif["message"]
+                    created_at = notif["created_at"]
+                    notif_type = notif["notification_type"]
+
+                    # Badges and Borders
+                    border_color = "#475569"
+                    if not is_read:
+                        border_color = "#3b82f6"  # Blue for unread
+
+                    badge_html = ""
+                    if not is_read:
+                        badge_html = '<span class="badge badge-warning" style="background-color: #3b82f6; color: white;">NEW</span>'
+                    else:
+                        badge_html = '<span class="badge badge-success" style="background-color: #475569; color: white;">READ</span>'
+
+                    # Show Card
+                    st.markdown(
+                        f"""
+                        <div class="glass-card" style="margin-top: 10px; border-left: 4px solid {border_color};">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <strong>{title}</strong>
+                                {badge_html}
+                            </div>
+                            <div style="font-size: 0.95rem; margin-bottom: 8px;">{msg}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">
+                                <strong>Type:</strong> {notif_type.upper()} | <strong>Time:</strong> {created_at}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    # Mark single as read button
+                    if not is_read:
+                        col_read, col_rem = st.columns([1, 4])
+                        with col_read:
+                            if st.button(
+                                "Mark Read",
+                                key=f"btn_read_{notif_id}",
+                                use_container_width=True,
+                            ):
+                                try:
+                                    read_res = httpx.post(
+                                        f"{API_URL}/notifications/{notif_id}/read",
+                                        headers=st.session_state.headers,
+                                    )
+                                    if read_res.status_code == 200:
+                                        st.success("Alert read.")
+                                        time.sleep(0.5)
+                                        st.rerun()
+                                    else:
+                                        st.error(
+                                            f"Failed to mark read: {read_res.text}"
+                                        )
+                                except Exception as err:
+                                    st.error(f"Read request failed: {str(err)}")
+
+                    st.markdown(
+                        "<hr style='border-top: 1px dashed rgba(255,255,255,0.08);'/>",
+                        unsafe_allow_html=True,
+                    )
+        else:
+            st.error(
+                f"Failed to load notifications. Status code: {notif_res.status_code}"
             )
     except Exception as err:
         st.error(f"Connection failed: {str(err)}")

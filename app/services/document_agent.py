@@ -14,7 +14,9 @@ from app.core.ai import ai_model
 from app.models.document import Document
 from app.models.user import User
 from app.repositories.approval_repository import approval_repo
+from app.repositories.notification_repository import notification_repo
 from app.schemas.approval import ApprovalRequestCreate
+from app.schemas.notification import NotificationCreate
 from app.schemas.user import UserRole
 
 logger = logging.getLogger(__name__)
@@ -274,6 +276,28 @@ async def delete_document(ctx: RunContext[AgentDeps], filename_or_id: str) -> st
             },
         )
         req = await approval_repo.create(db, req_in, user.id)
+
+        # Notify Administrators of the new pending approval request
+        try:
+            admins_stmt = select(User).where(User.role == UserRole.ADMIN)
+            admins_res = await db.execute(admins_stmt)
+            admins = admins_res.scalars().all()
+            for admin in admins:
+                await notification_repo.create(
+                    db,
+                    NotificationCreate(
+                        title="New Approval Request",
+                        message=(
+                            f"User {user.email} has requested document deletion "
+                            f"for '{doc.title}'. Approval Request ID: {req.id}."
+                        ),
+                        notification_type="approval",
+                    ),
+                    user_id=admin.id,
+                )
+        except Exception as notify_err:
+            logger.error("Failed to trigger admin notifications: %s", str(notify_err))
+
         return (
             f"Document deletion request for '{doc.title}' (ID: {doc.id}) "
             f"has been submitted and is pending administrator review. "

@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.user import User
 from app.models.workflow import WorkflowTask
+from app.repositories.notification_repository import notification_repo
 from app.repositories.workflow_repository import workflow_repo
+from app.schemas.notification import NotificationCreate
 from app.schemas.workflow import WorkflowTaskUpdate
 from app.services.coordinator_agent import direct_agent
 from app.services.document_agent import (
@@ -317,6 +319,26 @@ class WorkflowEngineService:
                     await workflow_repo.update_workflow_status(
                         db, workflow, final_status, user_id
                     )
+
+                    # Trigger workflow status notification
+                    try:
+                        await notification_repo.create(
+                            db,
+                            NotificationCreate(
+                                title=f"Workflow {final_status.capitalize()}",
+                                message=(
+                                    f"Workflow '{workflow.name}' has finished "
+                                    f"with status: {final_status}."
+                                ),
+                                notification_type="workflow",
+                            ),
+                            user_id=workflow.user_id,
+                        )
+                    except Exception as notify_err:
+                        logger.error(
+                            "Failed to notify workflow owner: %s", str(notify_err)
+                        )
+
                     logger.info(
                         "Workflow %s finished with status: %s",
                         workflow_id,
@@ -334,6 +356,23 @@ class WorkflowEngineService:
                     await workflow_repo.update_workflow_status(
                         db, workflow, "failed", user_id
                     )
+                    try:
+                        await notification_repo.create(
+                            db,
+                            NotificationCreate(
+                                title="Workflow Failed",
+                                message=(
+                                    f"Workflow '{workflow.name}' failed due to "
+                                    f"a system error: {str(e)}"
+                                ),
+                                notification_type="workflow",
+                            ),
+                            user_id=workflow.user_id,
+                        )
+                    except Exception as notify_err:
+                        logger.error(
+                            "Failed to notify workflow owner: %s", str(notify_err)
+                        )
 
 
 workflow_engine = WorkflowEngineService()

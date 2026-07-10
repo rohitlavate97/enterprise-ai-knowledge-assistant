@@ -12,7 +12,9 @@ from app.api.deps import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
 from app.repositories.approval_repository import approval_repo
+from app.repositories.notification_repository import notification_repo
 from app.schemas.approval import ApprovalRequestResponse, ApprovalRequestReview
+from app.schemas.notification import NotificationCreate
 from app.schemas.user import UserRole
 from app.services.document_service import document_service
 from app.services.vector_service import vector_service
@@ -105,11 +107,33 @@ async def review_approval(
         comment=review_in.comment,
     )
 
+    # 1.5. Notify requester of the review decision
+    try:
+        action_verb = "approved" if review_in.status == "approved" else "rejected"
+        details_str = (
+            f"rejection reason: {review_in.rejection_reason}"
+            if review_in.status == "rejected"
+            else "it has been executed successfully"
+        )
+        await notification_repo.create(
+            db,
+            NotificationCreate(
+                title=f"Approval Request {review_in.status.capitalize()}",
+                message=(
+                    f"Your request to execute '{updated_req.action_type}' "
+                    f"({updated_req.id}) was {action_verb}. "
+                    f"Comment: {review_in.comment or 'None'}. "
+                    f"Status: {details_str}."
+                ),
+                notification_type="approval",
+            ),
+            user_id=updated_req.requested_by_id,
+        )
+    except Exception as notify_err:
+        logger.error("Failed to notify requester: %s", str(notify_err))
+
     # 2. If approved, execute action
-    if (
-        review_in.status == "approved"
-        and updated_req.action_type == "delete_document"
-    ):
+    if review_in.status == "approved" and updated_req.action_type == "delete_document":
         doc_id_str = updated_req.payload.get("document_id")
         if not doc_id_str:
             raise HTTPException(
