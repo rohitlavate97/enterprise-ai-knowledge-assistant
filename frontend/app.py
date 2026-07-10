@@ -1,11 +1,15 @@
 """Streamlit frontend for the Enterprise AI Knowledge Assistant."""
 
+import asyncio
 import json
+import logging
 import time
 from typing import Literal
 
 import httpx
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 # Configure page layout and style
 st.set_page_config(
@@ -263,6 +267,7 @@ if not st.session_state.token:
     tab_workflows,
     tab_approvals,
     tab_notifications,
+    tab_admin,
 ) = st.tabs(
     [
         "📁 Knowledge Documents",
@@ -274,6 +279,7 @@ if not st.session_state.token:
         "⚙️ Workflow Engine",
         "✅ Approvals Gate",
         "🔔 Notifications Hub",
+        "📊 Admin Dashboard",
     ]
 )
 
@@ -1768,3 +1774,234 @@ with tab_notifications:
             )
     except Exception as err:
         st.error(f"Connection failed: {str(err)}")
+
+
+# TAB 10: Admin Dashboard
+with tab_admin:
+    st.subheader("📊 System Administration & Monitoring Portal")
+
+    # Check if user is admin
+    user_role = st.session_state.user.get("role")
+    if user_role != "admin":
+        st.warning(
+            "🔒 Access Denied: Only system administrators are authorized to access this dashboard."
+        )
+    else:
+        # Define websocket URL and background thread
+        WS_URL = (
+            API_URL.replace("http://", "ws://").replace("https://", "wss://")
+            + "/admin/system-health/ws"
+        )
+
+        def ws_thread_fn(token: str, ws_url: str) -> None:
+            try:
+                import websockets  # noqa: PLC0415
+            except ImportError:
+                return
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            async def listen() -> None:
+                while True:
+                    try:
+                        async with websockets.connect(f"{ws_url}?token={token}") as ws:
+                            while True:
+                                msg = await ws.recv()
+                                data = json.loads(msg)
+                                st.session_state.health_metrics = data
+                    except Exception:
+                        await asyncio.sleep(3)
+
+            loop.run_until_complete(listen())
+
+        # Start health WebSocket thread if not already running
+        if "health_thread" not in st.session_state and st.session_state.token:
+            st.session_state.health_metrics = {}
+            try:
+                import threading  # noqa: PLC0415
+
+                t = threading.Thread(
+                    target=ws_thread_fn,
+                    args=(st.session_state.token, WS_URL),
+                    daemon=True,
+                )
+                t.start()
+                st.session_state.health_thread = t
+            except Exception as thread_err:
+                logger.error(
+                    "Failed to start health websocket thread: %s", str(thread_err)
+                )
+
+        # Refresh button
+        col_ref_btn, col_ref_space = st.columns([1, 4])
+        with col_ref_btn:
+            if st.button("🔄 Refresh Data", key="btn_refresh_admin"):
+                st.rerun()
+
+        # Fetch Admin Analytics
+        try:
+            anal_res = httpx.get(
+                f"{API_URL}/admin/analytics", headers=st.session_state.headers
+            )
+            if anal_res.status_code == 200:
+                anal = anal_res.json()
+
+                # Metric Cards Row
+                st.write("### 📈 System Statistics")
+                col_u, col_d, col_w, col_a, col_s = st.columns(5)
+
+                col_u.metric("Total Users", anal["total_users"])
+                col_d.metric("Total Documents", anal["total_documents"])
+                col_w.metric("Total Workflows", anal["total_workflows"])
+                col_a.metric("Total Approvals", anal["total_approvals"])
+
+                # Format storage bytes
+                storage_bytes = anal["total_storage_bytes"]
+                if storage_bytes >= 1024**2:
+                    storage_str = f"{storage_bytes / (1024**2):.1f} MB"
+                elif storage_bytes >= 1024:
+                    storage_str = f"{storage_bytes / 1024:.1f} KB"
+                else:
+                    storage_str = f"{storage_bytes} Bytes"
+                col_s.metric("Storage Used", storage_str)
+
+                # Visual sub-sections
+                admin_tab_health, admin_tab_users, admin_tab_audit = st.tabs(
+                    [
+                        "🖥️ Health & Analytics",
+                        "👥 User Directory",
+                        "🛡️ Security Audit Logs",
+                    ]
+                )
+
+                # Sub-Tab 1: Health & Analytics
+                with admin_tab_health:
+                    col_l, col_r = st.columns([1, 1])
+
+                    with col_l:
+                        st.markdown(
+                            "<h5>🖥️ Live System Health</h5>", unsafe_allow_html=True
+                        )
+                        health = st.session_state.get("health_metrics", {})
+                        if not health:
+                            # Show loading state or local mock
+                            cpu_val = 20.0
+                            ram_val = 45.0
+                            db_state = True
+                            st.info("Establishing connection to health WebSocket...")
+                        else:
+                            cpu_val = health.get("cpu_percent", 0.0)
+                            ram_val = health.get("ram_percent", 0.0)
+                            db_state = health.get("db_connected", True)
+
+                        st.write("**CPU Usage**")
+                        st.progress(cpu_val / 100.0)
+                        st.write(f"CPU Load: {cpu_val}%")
+
+                        st.write("**RAM Usage**")
+                        st.progress(ram_val / 100.0)
+                        st.write(f"RAM Load: {ram_val}%")
+
+                        db_badge = (
+                            '<span style="color: #10b981; font-weight: bold;">● CONNECTED</span>'
+                            if db_state
+                            else '<span style="color: #ef4444; font-weight: bold;">● DISCONNECTED</span>'
+                        )
+                        st.markdown(
+                            f"**Database Status:** {db_badge}", unsafe_allow_html=True
+                        )
+
+                    with col_r:
+                        st.markdown(
+                            "<h5>📊 Entity Status Breakdowns</h5>",
+                            unsafe_allow_html=True,
+                        )
+
+                        st.write("**Documents Ingestion Status**")
+                        doc_status_counts = anal["document_status_counts"]
+                        if doc_status_counts:
+                            st.bar_chart(doc_status_counts)
+                        else:
+                            st.info("No documents uploaded yet.")
+
+                        st.write("**Workflows Status**")
+                        wf_status_counts = anal["workflow_status_counts"]
+                        if wf_status_counts:
+                            st.bar_chart(wf_status_counts)
+                        else:
+                            st.info("No workflows registered yet.")
+
+                # Sub-Tab 2: User Directory
+                with admin_tab_users:
+                    st.markdown("<h5>👥 User Directory</h5>", unsafe_allow_html=True)
+                    try:
+                        user_list_res = httpx.get(
+                            f"{API_URL}/users/", headers=st.session_state.headers
+                        )
+                        if user_list_res.status_code == 200:
+                            users = user_list_res.json()
+                            user_data = []
+                            for u in users:
+                                user_data.append(
+                                    {
+                                        "ID": u["id"],
+                                        "Email": u["email"],
+                                        "Full Name": u["full_name"],
+                                        "Role": u["role"],
+                                        "Active": u["is_active"],
+                                        "Department ID": u.get("department_id"),
+                                    }
+                                )
+                            st.dataframe(user_data, use_container_width=True)
+                        else:
+                            st.error("Failed to load user directory.")
+                    except Exception as err:
+                        st.error(f"Users fetch failed: {str(err)}")
+
+                # Sub-Tab 3: Security Audit Logs
+                with admin_tab_audit:
+                    st.markdown(
+                        "<h5>🛡️ Security Audit Logs</h5>", unsafe_allow_html=True
+                    )
+                    try:
+                        logs_res = httpx.get(
+                            f"{API_URL}/admin/audit-logs?limit=50",
+                            headers=st.session_state.headers,
+                        )
+                        if logs_res.status_code == 200:
+                            logs = logs_res.json()
+                            if not logs:
+                                st.info("No audit logs found.")
+                            else:
+                                for log in logs:
+                                    st.markdown(
+                                        f"""
+                                        <div class="glass-card" style="margin-top: 10px; border-left: 4px solid #475569;">
+                                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px;">
+                                                <strong>{log["action"]}</strong>
+                                                <span style="color: #94a3b8;">{log["created_at"]}</span>
+                                            </div>
+                                            <div style="font-size: 0.95rem; margin-bottom: 5px;">{log["details"]}</div>
+                                            <div style="font-size: 0.8rem; color: #94a3b8;">
+                                                <strong>User ID:</strong> <code>{log["user_id"] or "SYSTEM"}</code> | <strong>Log ID:</strong> <code>{log["id"]}</code>
+                                            </div>
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
+                                    if log.get("payload"):
+                                        with st.expander("🔍 View Audit Payload"):
+                                            st.json(log["payload"])
+                                    st.markdown(
+                                        "<hr style='border-top: 1px dashed rgba(255,255,255,0.08);'/>",
+                                        unsafe_allow_html=True,
+                                    )
+                        else:
+                            st.error("Failed to load audit logs.")
+                    except Exception as err:
+                        st.error(f"Audit logs fetch failed: {str(err)}")
+            else:
+                st.error(f"Failed to load analytics: {anal_res.text}")
+        except Exception as err:
+            st.error(f"Analytics connection failed: {str(err)}")

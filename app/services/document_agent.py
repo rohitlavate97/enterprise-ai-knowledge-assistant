@@ -14,6 +14,7 @@ from app.core.ai import ai_model
 from app.models.document import Document
 from app.models.user import User
 from app.repositories.approval_repository import approval_repo
+from app.repositories.audit_log_repository import audit_log_repo
 from app.repositories.notification_repository import notification_repo
 from app.schemas.approval import ApprovalRequestCreate
 from app.schemas.notification import NotificationCreate
@@ -276,6 +277,18 @@ async def delete_document(ctx: RunContext[AgentDeps], filename_or_id: str) -> st
             },
         )
         req = await approval_repo.create(db, req_in, user.id)
+
+        # Log approval request creation audit action
+        await audit_log_repo.log(
+            db,
+            action="CREATE_APPROVAL_REQUEST",
+            details=f"Created approval request {req.id} of type '{req.action_type}'.",
+            user_id=user.id,
+            payload={
+                "approval_request_id": str(req.id),
+                "action_type": req.action_type,
+            },
+        )
 
         # Notify Administrators of the new pending approval request
         try:

@@ -21,6 +21,7 @@ from app.api.deps import get_current_active_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+from app.repositories.audit_log_repository import audit_log_repo
 from app.schemas.document import (
     DocumentCreate,
     DocumentResponse,
@@ -91,6 +92,16 @@ async def upload_document(  # noqa: PLR0913
     )
 
     db_doc = await document_service.create_document_record(db, doc_in)
+
+    # Log document upload audit action
+
+    await audit_log_repo.log(
+        db,
+        action="UPLOAD_DOCUMENT",
+        details=f"Uploaded document '{db_doc.title}' (ID: {db_doc.id}).",
+        user_id=current_user.id,
+        payload={"document_id": str(db_doc.id), "title": db_doc.title},
+    )
 
     # 6. Trigger asynchronous background processing task
     session_factory = async_sessionmaker(
@@ -274,3 +285,13 @@ async def delete_document(
 
     # Remove database record
     await document_service.delete_document_record(db, doc_id)
+
+    # Log document deletion audit action
+
+    await audit_log_repo.log(
+        db,
+        action="DELETE_DOCUMENT",
+        details=f"Deleted document '{db_doc.title}' (ID: {db_doc.id}).",
+        user_id=current_user.id,
+        payload={"document_id": str(db_doc.id), "title": db_doc.title},
+    )

@@ -5,7 +5,9 @@ import os
 os.environ["APP_ENV"] = "testing"
 
 import asyncio
+import contextlib
 from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -13,10 +15,23 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.database import get_db
 from app.main import app
+
+# Explicitly import all model modules to register them on Base.metadata
+from app.models import (
+    approval as _app,  # noqa: F401
+    audit_log as _aud,  # noqa: F401
+    chat as _ch,  # noqa: F401
+    department as _dep,  # noqa: F401
+    document as _doc,  # noqa: F401
+    notification as _not,  # noqa: F401
+    team as _tm,  # noqa: F401
+    user as _us,  # noqa: F401
+    workflow as _wf,  # noqa: F401
+)
 from app.models.base import Base
 
-# Setup in-memory SQLite database for testing
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Setup file-based SQLite database for testing to ensure connection pool independence
+TEST_DATABASE_URL = "sqlite+aiosqlite:///test_temp.db"
 
 test_engine = create_async_engine(
     TEST_DATABASE_URL,
@@ -43,12 +58,22 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop]:
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def init_test_db() -> AsyncGenerator[None]:
     """Initialize the database schema for the test session."""
+
+    db_file = Path("test_temp.db")
+    if db_file.exists():
+        with contextlib.suppress(Exception):
+            db_file.unlink()
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await test_engine.dispose()
+
+    if db_file.exists():
+        with contextlib.suppress(Exception):
+            db_file.unlink()
 
 
 @pytest_asyncio.fixture

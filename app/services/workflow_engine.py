@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.user import User
 from app.models.workflow import WorkflowTask
+from app.repositories.audit_log_repository import audit_log_repo
 from app.repositories.notification_repository import notification_repo
 from app.repositories.workflow_repository import workflow_repo
 from app.schemas.notification import NotificationCreate
@@ -179,6 +180,17 @@ class WorkflowEngineService:
             # Update workflow status to running
             await workflow_repo.update_workflow_status(db, workflow, "running", user_id)
 
+            # Log workflow run start audit action
+            await audit_log_repo.log(
+                db,
+                action="RUN_WORKFLOW",
+                details=(
+                    f"Workflow '{workflow.name}' (ID: {workflow.id}) execution started."
+                ),
+                user_id=user_id,
+                payload={"workflow_id": str(workflow.id), "status": "running"},
+            )
+
             user = workflow.user
 
             try:
@@ -320,6 +332,21 @@ class WorkflowEngineService:
                         db, workflow, final_status, user_id
                     )
 
+                    # Log workflow run finish audit action
+                    await audit_log_repo.log(
+                        db,
+                        action="FINISH_WORKFLOW",
+                        details=(
+                            f"Workflow '{workflow.name}' (ID: {workflow.id}) "
+                            f"execution finished with status '{final_status}'."
+                        ),
+                        user_id=user_id,
+                        payload={
+                            "workflow_id": str(workflow.id),
+                            "status": final_status,
+                        },
+                    )
+
                     # Trigger workflow status notification
                     try:
                         await notification_repo.create(
@@ -355,6 +382,21 @@ class WorkflowEngineService:
                 if workflow is not None:
                     await workflow_repo.update_workflow_status(
                         db, workflow, "failed", user_id
+                    )
+                    # Log workflow run crash audit action
+                    await audit_log_repo.log(
+                        db,
+                        action="CRASH_WORKFLOW",
+                        details=(
+                            f"Workflow '{workflow.name}' (ID: {workflow.id}) "
+                            f"execution crashed due to system error."
+                        ),
+                        user_id=user_id,
+                        payload={
+                            "workflow_id": str(workflow.id),
+                            "status": "failed",
+                            "error": str(e),
+                        },
                     )
                     try:
                         await notification_repo.create(

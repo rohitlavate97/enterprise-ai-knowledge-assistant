@@ -12,6 +12,7 @@ from app.api.deps import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
 from app.repositories.approval_repository import approval_repo
+from app.repositories.audit_log_repository import audit_log_repo
 from app.repositories.notification_repository import notification_repo
 from app.schemas.approval import ApprovalRequestResponse, ApprovalRequestReview
 from app.schemas.notification import NotificationCreate
@@ -105,6 +106,23 @@ async def review_approval(
         reviewer_id=current_user.id,
         rejection_reason=review_in.rejection_reason,
         comment=review_in.comment,
+    )
+
+    # Log approval review audit action
+    await audit_log_repo.log(
+        db,
+        action="REVIEW_APPROVAL_REQUEST",
+        details=(
+            f"Admin {current_user.email} reviewed request {updated_req.id} "
+            f"with status '{updated_req.status}'."
+        ),
+        user_id=current_user.id,
+        payload={
+            "approval_request_id": str(updated_req.id),
+            "status": updated_req.status,
+            "comment": updated_req.comment,
+            "rejection_reason": updated_req.rejection_reason,
+        },
     )
 
     # 1.5. Notify requester of the review decision

@@ -253,6 +253,7 @@ async def test_notifications_integrated_with_workflows(db: AsyncSession) -> None
     # Run workflow
     def session_factory() -> AsyncSession:
         return db
+
     with patch.object(
         WorkflowEngineService, "execute_task_logic", return_value={"output": "Hi"}
     ):

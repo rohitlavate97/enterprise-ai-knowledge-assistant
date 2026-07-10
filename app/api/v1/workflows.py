@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.api.deps import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
+from app.repositories.audit_log_repository import audit_log_repo
 from app.repositories.workflow_repository import workflow_repo
 from app.schemas.workflow import WorkflowCreate, WorkflowResponse
 from app.services.workflow_engine import workflow_engine
@@ -31,7 +32,16 @@ async def create_workflow(
     """Create a new multi-step workflow execution graph."""
     logger.info("User %s creating workflow: %s", current_user.email, workflow_in.name)
     try:
-        return await workflow_repo.create(db, workflow_in, current_user.id)
+        wf = await workflow_repo.create(db, workflow_in, current_user.id)
+
+        await audit_log_repo.log(
+            db,
+            action="CREATE_WORKFLOW",
+            details=f"Created workflow '{wf.name}' (ID: {wf.id}).",
+            user_id=current_user.id,
+            payload={"workflow_id": str(wf.id), "name": wf.name},
+        )
+        return wf
     except Exception as err:
         logger.error("Failed to create workflow: %s", str(err))
         raise HTTPException(

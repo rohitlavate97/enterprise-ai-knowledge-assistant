@@ -1,6 +1,7 @@
 """Database repository modules (data access layer)."""
 
 from app.repositories.approval_repository import approval_repo
+from app.repositories.audit_log_repository import audit_log_repo
 from app.repositories.chat_repository import chat_repo
 from app.repositories.department_repository import department_repo
 from app.repositories.document_repository import document_repo
@@ -18,4 +19,5 @@ __all__ = [
     "workflow_repo",
     "approval_repo",
     "notification_repo",
+    "audit_log_repo",
 ]

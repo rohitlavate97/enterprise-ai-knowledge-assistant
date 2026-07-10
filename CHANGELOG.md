@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Implemented **Admin Dashboard** (Milestone 20) with system health WebSockets, usage metrics analytics, and audit logging.
+- Created `AuditLog` database model tracking user activities (logins, document uploads/deletions, workflow creation/execution, and approval requests/reviews) with JSON payloads.
+- Generated and executed database migration scripts using Alembic.
+- Exposed REST API endpoints `/api/v1/admin/analytics` and `/api/v1/admin/audit-logs` for administrators.
+- Implemented a live system health WebSocket endpoint (`/api/v1/admin/system-health/ws`) streaming CPU, RAM, and database connection status in real-time.
+- Built a Streamlit "Admin Dashboard" tab with metrics cards, ingestion status breakdowns, live health gauge panel, user directory table, and interactive audit logs viewer.
+- Wrote integration and WebSocket stream tests in `tests/test_admin_dashboard.py`.
+- Implemented **Notifications** (Milestone 19) module to alert users about system events.
+- Created `Notification` database model tracking alert status (`read`, `unread`), type, and recipient.
+- Generated and executed database migration scripts using Alembic.
+- Exposed REST API endpoints under `/api/v1/notifications` for querying, count alerts, and marking read.
+- Configured real-time toast notifications in the Streamlit frontend using `st.toast` and polling.
+- Wrote integration and notifications tests in `tests/test_notifications.py`.
 - Implemented **Human-in-the-Loop (HITL) Approval Gating** (Milestone 18) to secure sensitive write/destructive operations.
 - Created `ApprovalRequest` database model tracking requester, reviewer, action payload, status (`pending`, `approved`, `rejected`), timestamps, comments, and rejection reasons.
 - Generated and executed database migration scripts using Alembic.

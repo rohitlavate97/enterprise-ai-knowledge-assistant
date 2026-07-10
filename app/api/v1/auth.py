@@ -12,6 +12,7 @@ from app.api.deps import RoleChecker, get_current_active_user
 from app.core.database import get_db
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.models.user import User
+from app.repositories.audit_log_repository import audit_log_repo
 from app.repositories.user_repository import user_repo
 from app.schemas.auth import Token, TokenRefreshRequest
 from app.schemas.user import UserCreate, UserResponse, UserRole
@@ -49,6 +50,13 @@ async def login(
         )
 
     subject = {"sub": str(user.id), "role": user.role}
+
+    await audit_log_repo.log(
+        db,
+        action="LOGIN",
+        details=f"User {user.email} logged in successfully.",
+        user_id=user.id,
+    )
     return {
         "access_token": create_access_token(subject=subject),
         "refresh_token": create_refresh_token(subject=subject),
