@@ -6,6 +6,7 @@ from app.models.department import Department
 from app.models.document import Document
 from app.models.team import Team
 from app.models.user import User
+from app.models.workflow import Workflow, WorkflowTask
 
 __all__ = [
     "Base",
@@ -16,4 +17,6 @@ __all__ = [
     "ChatSession",
     "ChatMessage",
     "UserMemory",
+    "Workflow",
+    "WorkflowTask",
 ]

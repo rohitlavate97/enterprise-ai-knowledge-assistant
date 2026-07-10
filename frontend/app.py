@@ -2,6 +2,7 @@
 
 import json
 import time
+from typing import Literal
 
 import httpx
 import streamlit as st
@@ -252,7 +253,15 @@ if not st.session_state.token:
 
 
 # Main Application Interface (Only reachable when authenticated)
-tab_docs, tab_search, tab_qa, tab_research, tab_doc_agent, tab_coordinator = st.tabs(
+(
+    tab_docs,
+    tab_search,
+    tab_qa,
+    tab_research,
+    tab_doc_agent,
+    tab_coordinator,
+    tab_workflows,
+) = st.tabs(
     [
         "📁 Knowledge Documents",
         "🔍 Semantic Search",
@@ -260,6 +269,7 @@ tab_docs, tab_search, tab_qa, tab_research, tab_doc_agent, tab_coordinator = st.
         "🔬 AI Research Agent",
         "📄 AI Document Agent",
         "🤖 Central Coordinator",
+        "⚙️ Workflow Engine",
     ]
 )
 
@@ -613,7 +623,9 @@ with tab_qa:
                     # Highlight if active
                     btn_label = f"💬 {s_title}"
                     is_active = s_id == st.session_state.active_chat_session_id
-                    btn_type = "primary" if is_active else "secondary"
+                    btn_type: Literal["primary", "secondary"] = (
+                        "primary" if is_active else "secondary"
+                    )
                     if st.button(
                         btn_label,
                         key=f"sel_{s_id}",
@@ -972,7 +984,7 @@ with tab_doc_agent:
             try:
                 # We show status steps to mock step-by-step thinking for a premium user experience
                 status_box = st.status(
-                    "🚀 Deploying Document Agent...", key="status_doc_agent"
+                    "🚀 Deploying Document Agent..."
                 )
 
                 with status_box:
@@ -1097,7 +1109,7 @@ with tab_coordinator:
             try:
                 # We show status steps to show dynamic routing feedback
                 status_box = st.status(
-                    "🤖 Deploying Coordinator Agent...", key="status_coordinator"
+                    "🤖 Deploying Coordinator Agent..."
                 )
 
                 with status_box:
@@ -1172,9 +1184,7 @@ with tab_coordinator:
                         conf = data["confidence_score"] * 100
                         st.metric("Overall Confidence", f"{conf:.1f}%")
                     with col_m2:
-                        referenced_cnt = len(
-                            data.get("documents_referenced", [])
-                        )
+                        referenced_cnt = len(data.get("documents_referenced", []))
                         st.metric("Cited Documents", f"{referenced_cnt}")
 
                     if data.get("documents_referenced"):
@@ -1182,9 +1192,7 @@ with tab_coordinator:
                         for ref in data["documents_referenced"]:
                             st.code(ref, language="text")
                 else:
-                    status_box.update(
-                        label="❌ Orchestration Failed", state="error"
-                    )
+                    status_box.update(label="❌ Orchestration Failed", state="error")
                     st.error(
                         f"Coordinator failed to execute. Status code: {res_agent.status_code}"
                     )
@@ -1192,3 +1200,281 @@ with tab_coordinator:
                 status_box.update(label="❌ Connection Error", state="error")
                 st.error(f"Request failed: {str(err)}")
 
+
+# TAB 7: Workflow Engine
+with tab_workflows:
+    st.subheader("⚙️ Workflow Engine Management")
+    st.write(
+        "Design, trigger, and inspect multi-step task execution graphs with custom retries, routing, and scheduling."
+    )
+
+    col_wf_list, col_wf_create = st.columns([3, 2])
+
+    # 1. List and Monitor Workflows
+    with col_wf_list:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.write("### Active Workflows")
+
+        # Keep track of if we need to poll auto-refresh
+        should_poll = False
+
+        try:
+            wfs_res = httpx.get(
+                f"{API_URL}/workflows/", headers=st.session_state.headers
+            )
+            if wfs_res.status_code == 200:
+                workflows = wfs_res.json()
+                if not workflows:
+                    st.info(
+                        "No workflows created yet. Use the creation panel to design one."
+                    )
+                else:
+                    for wf in workflows:
+                        wf_id = wf["id"]
+                        wf_status = wf["status"]
+
+                        if wf_status == "completed":
+                            status_badge = (
+                                '<span class="badge badge-success">COMPLETED</span>'
+                            )
+                        elif wf_status in ["running", "pending"]:
+                            status_badge = (
+                                '<span class="badge badge-warning">RUNNING</span>'
+                            )
+                            should_poll = True
+                        elif wf_status == "failed":
+                            status_badge = (
+                                '<span class="badge badge-danger">FAILED</span>'
+                            )
+                        else:
+                            status_badge = f'<span class="badge badge-secondary">{wf_status.upper()}</span>'
+
+                        # Render workflow card header
+                        st.markdown(
+                            f"""
+                            <div style="padding: 12px; margin-top: 10px; background-color: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <strong>{wf["name"]}</strong>
+                                    {status_badge}
+                                </div>
+                                <p style="font-size: 0.9rem; color: #94a3b8; margin: 0 0 10px 0;">{wf["description"] or "No description provided."}</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                        # Buttons for operations
+                        col_run, col_del, col_space = st.columns([1, 1, 3])
+                        with col_run:
+                            if st.button("🚀 Run", key=f"run_wf_{wf_id}"):
+                                try:
+                                    run_res = httpx.post(
+                                        f"{API_URL}/workflows/{wf_id}/run",
+                                        headers=st.session_state.headers,
+                                    )
+                                    if run_res.status_code == 200:
+                                        st.success(
+                                            "Workflow execution triggered in background!"
+                                        )
+                                        time.sleep(0.5)
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to run workflow.")
+                                except Exception as err:
+                                    st.error(f"Error: {str(err)}")
+                        with col_del:
+                            if st.button("🗑️ Delete", key=f"del_wf_{wf_id}"):
+                                try:
+                                    del_res = httpx.delete(
+                                        f"{API_URL}/workflows/{wf_id}",
+                                        headers=st.session_state.headers,
+                                    )
+                                    if del_res.status_code == 204:
+                                        st.success("Workflow deleted.")
+                                        time.sleep(0.5)
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to delete workflow.")
+                                except Exception as err:
+                                    st.error(f"Error: {str(err)}")
+
+                        # Display tasks in expandable details
+                        with st.expander(f"📋 View Tasks ({len(wf['tasks'])} steps)"):
+                            tasks = sorted(wf["tasks"], key=lambda t: t["step_number"])
+                            for t in tasks:
+                                t_status = t["status"]
+                                if t_status == "completed":
+                                    t_badge = '<span class="badge badge-success">COMPLETED</span>'
+                                elif t_status in ["running", "pending", "retrying"]:
+                                    t_badge = '<span class="badge badge-warning">RUNNING</span>'
+                                elif t_status == "failed":
+                                    t_badge = (
+                                        '<span class="badge badge-danger">FAILED</span>'
+                                    )
+                                else:
+                                    t_badge = f'<span class="badge badge-secondary">{t_status.upper()}</span>'
+
+                                st.markdown(
+                                    f"""
+                                    <div style="padding: 10px; margin-bottom: 8px; background-color: rgba(0,0,0,0.15); border-radius: 6px; font-size: 0.9rem;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                            <strong>Step {t["step_number"]}: {t["name"]}</strong>
+                                            {t_badge}
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: #94a3b8;">
+                                            Type: <code>{t["task_type"]}</code> | Retries: {t["retry_count"]}/{t["max_retries"]}
+                                        </div>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True,
+                                )
+                                # Show outputs if completed or failed
+                                if t.get("output_data"):
+                                    st.write("**Output Data:**")
+                                    st.json(t["output_data"])
+                                if t.get("input_data"):
+                                    st.write("**Input Parameters:**")
+                                    st.json(t["input_data"])
+                                if t.get("conditional_routes"):
+                                    st.write("**Conditional Routing Matrix:**")
+                                    st.json(t["conditional_routes"])
+            else:
+                st.error("Failed to fetch workflows from API.")
+        except Exception as err:
+            st.error(f"Error fetching workflows: {str(err)}")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Trigger near-real-time auto-refresh if there is a running workflow
+        if should_poll:
+            st.info(
+                "🔄 Running executing task loops in background... Auto-refreshing in 2 seconds."
+            )
+            time.sleep(2.0)
+            st.rerun()
+
+    # 2. Create Workflow Panel
+    with col_wf_create:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.write("### Design New Workflow")
+
+        wf_name = st.text_input(
+            "Workflow Name", placeholder="e.g. Wellness Compliance Evaluation"
+        )
+        wf_desc = st.text_area(
+            "Description",
+            placeholder="e.g. Conducts research on wellness policies and inspects uploaded metadata.",
+        )
+
+        st.markdown("---")
+        st.write("#### Configure Steps")
+        num_steps = st.slider(
+            "Number of steps in execution graph", min_value=1, max_value=4, value=2
+        )
+
+        wf_tasks = []
+        for i in range(1, num_steps + 1):
+            with st.container():
+                st.markdown(f"##### 📍 Step {i} Configuration")
+                t_name = st.text_input(
+                    f"Step {i} Name", value=f"Action Step {i}", key=f"t_name_{i}"
+                )
+                t_type = st.selectbox(
+                    f"Step {i} Task Type",
+                    ["research", "document", "direct", "system"],
+                    key=f"t_type_{i}",
+                )
+                t_query = st.text_area(
+                    f"Step {i} Input Query / Prompt",
+                    value="Research wellness guidelines.",
+                    key=f"t_query_{i}",
+                )
+                t_retries = st.slider(
+                    f"Step {i} Max Retries",
+                    min_value=0,
+                    max_value=5,
+                    value=2,
+                    key=f"t_retries_{i}",
+                )
+                t_delay = st.slider(
+                    f"Step {i} Retry Delay (seconds)",
+                    min_value=0,
+                    max_value=30,
+                    value=3,
+                    key=f"t_delay_{i}",
+                )
+
+                # Dependencies setup
+                dep_options = ["None"] + [f"Step {x}" for x in range(1, i)]
+                selected_dep = st.selectbox(
+                    f"Step {i} Depends On", dep_options, key=f"t_dep_{i}"
+                )
+                depends_on_step = None
+                if selected_dep != "None":
+                    # Map Step X to step number X
+                    depends_on_step = int(selected_dep.replace("Step ", ""))
+
+                # Conditional routes setup
+                st.write("*(Optional) Conditional Branching Routes:*")
+                route_opts = ["End Workflow"] + [
+                    f"Step {x}" for x in range(1, num_steps + 1) if x != i
+                ]
+                route_success = st.selectbox(
+                    "On Success route to:", route_opts, key=f"t_route_s_{i}"
+                )
+                route_failure = st.selectbox(
+                    "On Failure route to:", route_opts, key=f"t_route_f_{i}"
+                )
+
+                cond_routes = {}
+                if route_success != "End Workflow":
+                    cond_routes["success"] = int(route_success.replace("Step ", ""))
+                if route_failure != "End Workflow":
+                    cond_routes["failure"] = int(route_failure.replace("Step ", ""))
+
+                # Build task payload
+                task_input = {"query": t_query}
+                if t_type == "system":
+                    task_input = {"message": t_query}
+
+                task_payload = {
+                    "name": t_name,
+                    "task_type": t_type,
+                    "input_data": task_input,
+                    "step_number": i,
+                    "max_retries": t_retries,
+                    "retry_delay": t_delay,
+                    "depends_on_task_id": depends_on_step,  # Handled as step number integer for repo mappings
+                    "conditional_routes": cond_routes if cond_routes else None,
+                }
+                wf_tasks.append(task_payload)
+                st.markdown(
+                    "<hr style='border-top: 1px dashed rgba(255,255,255,0.05);'/>",
+                    unsafe_allow_html=True,
+                )
+
+        if st.button("Create Workflow", type="primary", use_container_width=True):
+            if not wf_name:
+                st.error("Workflow name is required.")
+            else:
+                try:
+                    payload = {
+                        "name": wf_name,
+                        "description": wf_desc if wf_desc else None,
+                        "tasks": wf_tasks,
+                    }
+                    create_res = httpx.post(
+                        f"{API_URL}/workflows/",
+                        json=payload,
+                        headers=st.session_state.headers,
+                    )
+                    if create_res.status_code == 201:
+                        st.success("Workflow successfully created and saved!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to create workflow: {create_res.text}")
+                except Exception as err:
+                    st.error(f"Creation request failed: {str(err)}")
+
+        st.markdown("</div>", unsafe_allow_html=True)

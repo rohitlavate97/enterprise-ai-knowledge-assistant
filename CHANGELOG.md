@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Created database models for `Workflow` and `WorkflowTask` supporting state tracking, dependencies, retries, and scheduling.
+- Generated and executed database migration scripts using Alembic.
+- Configured Pydantic DTO schemas for workflows and tasks.
+- Implemented `WorkflowRepository` and `WorkflowEngineService` managing multi-step task execution, retry handling, future scheduling, and conditional branching routes.
+- Exposed REST API endpoints under `/api/v1/workflows` for CRUD management and triggering execution.
+- Added comprehensive unit and integration tests verifying sequential task execution, retry loop, scheduling wait times, conditional routing, and specialist agent integration.
+- Built a "Workflow Engine" tab in the Streamlit portal allowing users to interactively design, run, and monitor multi-step workflows.
 - Created the central `coordinator_graph` in `app/services/coordinator_agent.py` using LangGraph to orchestrate routing decisions.
 - Created `router_agent` and `direct_agent` in PydanticAI to dynamically classify user queries and handle greetings directly.
 - Exposed POST endpoint `/api/v1/agents/coordinator` in `app/api/v1/agents.py` with structured output schema validation.
