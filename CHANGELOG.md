@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Implemented **Human-in-the-Loop (HITL) Approval Gating** (Milestone 18) to secure sensitive write/destructive operations.
+- Created `ApprovalRequest` database model tracking requester, reviewer, action payload, status (`pending`, `approved`, `rejected`), timestamps, comments, and rejection reasons.
+- Generated and executed database migration scripts using Alembic.
+- Configured Pydantic validation schemas (`ApprovalRequestCreate`, `ApprovalRequestReview`, `ApprovalRequestResponse`) utilizing ConfigDict for Pydantic V2 compatibility.
+- Implemented `ApprovalRepository` managing approvals persistence and status updates.
+- Refactored `delete_document` tool in Document Agent to submit a pending approval request instead of unconditionally blocking deletions.
+- Exposed REST API endpoints under `/api/v1/approvals` for users to view their requests and admins to review (approve/reject) pending requests.
+- Integrated post-approval execution to run the document deletion (removing physical file, vector index purge, database record deletion) upon admin authorization.
+- Added "Approvals Gate" workspace tab in Streamlit, displaying requests with colored status badges, action details, and an interactive review decision portal for administrators.
+- Wrote integration and approval-gating tests in `tests/test_human_approval.py`.
 - Created database models for `Workflow` and `WorkflowTask` supporting state tracking, dependencies, retries, and scheduling.
 - Generated and executed database migration scripts using Alembic.
 - Configured Pydantic DTO schemas for workflows and tasks.

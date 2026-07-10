@@ -137,8 +137,7 @@ class WorkflowEngineService:
                             status="failed",
                             output_data={
                                 "error": (
-                                    "Failed after max retries. Last error: "
-                                    f"{str(err)}"
+                                    f"Failed after max retries. Last error: {str(err)}"
                                 )
                             },
                         ),

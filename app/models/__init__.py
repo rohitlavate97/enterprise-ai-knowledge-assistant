@@ -1,5 +1,6 @@
 """SQLAlchemy database models (domain layer)."""
 
+from app.models.approval import ApprovalRequest
 from app.models.base import Base
 from app.models.chat import ChatMessage, ChatSession, UserMemory
 from app.models.department import Department
@@ -19,4 +20,5 @@ __all__ = [
     "UserMemory",
     "Workflow",
     "WorkflowTask",
+    "ApprovalRequest",
 ]

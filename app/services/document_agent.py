@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.ai import ai_model
 from app.models.document import Document
 from app.models.user import User
+from app.repositories.approval_repository import approval_repo
+from app.schemas.approval import ApprovalRequestCreate
 from app.schemas.user import UserRole
 
 logger = logging.getLogger(__name__)
@@ -262,14 +264,20 @@ async def delete_document(ctx: RunContext[AgentDeps], filename_or_id: str) -> st
         if user.role != UserRole.ADMIN and doc.department_id != user.department_id:
             return "Error: Access denied. Document is outside your department scope."
 
-        # Since Human-in-the-Loop Gating is not yet implemented
-        # (scheduled in a future milestone), all deletion actions are blocked.
+        # Create approval request for the deletion action
+        req_in = ApprovalRequestCreate(
+            action_type="delete_document",
+            payload={
+                "document_id": str(doc.id),
+                "document_title": doc.title,
+                "filename": doc.filename,
+            },
+        )
+        req = await approval_repo.create(db, req_in, user.id)
         return (
-            f"Error: Deletion of document '{doc.title}' (ID: {doc.id}) "
-            f"requested by user {user.email} is BLOCKED. Deletion is a "
-            "write/destructive operation and requires explicit "
-            "Human-in-the-Loop Approval Gating, which is currently "
-            "pending backend integration."
+            f"Document deletion request for '{doc.title}' (ID: {doc.id}) "
+            f"has been submitted and is pending administrator review. "
+            f"Request ID: {req.id}."
         )
     except Exception as err:
         logger.error("Document Agent delete tool error: %s", str(err))

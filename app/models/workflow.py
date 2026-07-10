@@ -76,5 +76,6 @@ class WorkflowTask(Base, TimestampMixin):
     # Relationships
     workflow: Mapped["Workflow"] = relationship(back_populates="tasks")
     depends_on: Mapped["WorkflowTask | None"] = relationship(
-        remote_side=[id], post_update=True  # noqa: A003
+        remote_side=[id],  # noqa: A003
+        post_update=True,
     )

@@ -143,8 +143,8 @@ async def test_document_agent_tools_scoping(db: AsyncSession) -> None:
 
     # Test delete_document (should always return blocked refusal message)
     res_delete_hr = await delete_document(ctx_hr, str(doc_hr.id))  # type: ignore
-    assert "BLOCKED" in res_delete_hr
-    assert "Human-in-the-Loop" in res_delete_hr
+    assert "pending administrator review" in res_delete_hr
+    assert "Request ID" in res_delete_hr
 
 
 @pytest.mark.asyncio

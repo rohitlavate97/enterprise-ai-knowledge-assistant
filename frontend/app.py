@@ -261,6 +261,7 @@ if not st.session_state.token:
     tab_doc_agent,
     tab_coordinator,
     tab_workflows,
+    tab_approvals,
 ) = st.tabs(
     [
         "📁 Knowledge Documents",
@@ -270,6 +271,7 @@ if not st.session_state.token:
         "📄 AI Document Agent",
         "🤖 Central Coordinator",
         "⚙️ Workflow Engine",
+        "✅ Approvals Gate",
     ]
 )
 
@@ -983,9 +985,7 @@ with tab_doc_agent:
         else:
             try:
                 # We show status steps to mock step-by-step thinking for a premium user experience
-                status_box = st.status(
-                    "🚀 Deploying Document Agent..."
-                )
+                status_box = st.status("🚀 Deploying Document Agent...")
 
                 with status_box:
                     st.write("🔒 Resolving user role and department permissions...")
@@ -1108,9 +1108,7 @@ with tab_coordinator:
         else:
             try:
                 # We show status steps to show dynamic routing feedback
-                status_box = st.status(
-                    "🤖 Deploying Coordinator Agent..."
-                )
+                status_box = st.status("🤖 Deploying Coordinator Agent...")
 
                 with status_box:
                     st.write("🧠 Contacting Central Coordinator...")
@@ -1478,3 +1476,164 @@ with tab_workflows:
                     st.error(f"Creation request failed: {str(err)}")
 
         st.markdown("</div>", unsafe_allow_html=True)
+
+
+# TAB 8: Approvals Gate
+with tab_approvals:
+    st.subheader("✅ Human-in-the-Loop Approvals Gate")
+    st.write(
+        "Monitor and authorize gated write operations. Sensitive actions requested by specialist agents require human sign-off."
+    )
+
+    try:
+        # Fetch requests
+        app_res = httpx.get(f"{API_URL}/approvals/", headers=st.session_state.headers)
+        if app_res.status_code == 200:
+            requests = app_res.json()
+            if not requests:
+                st.info("No approval requests found.")
+            else:
+                user_role = st.session_state.user["role"]
+
+                for req in requests:
+                    req_id = req["id"]
+                    req_status = req["status"]
+                    action_type = req["action_type"]
+                    payload = req["payload"]
+
+                    # Determine status badge
+                    if req_status == "approved":
+                        badge_html = '<span class="badge badge-success">APPROVED</span>'
+                    elif req_status == "rejected":
+                        badge_html = '<span class="badge badge-danger">REJECTED</span>'
+                    else:
+                        badge_html = (
+                            '<span class="badge badge-warning">PENDING REVIEW</span>'
+                        )
+
+                    # Show request card
+                    st.markdown(
+                        f"""
+                        <div class="glass-card" style="margin-top: 15px; border-left: 4px solid {"#10b981" if req_status == "approved" else "#ef4444" if req_status == "rejected" else "#f59e0b"};">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <strong>Request: {action_type.upper()}</strong>
+                                {badge_html}
+                            </div>
+                            <div style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px;">
+                                <strong>Request ID:</strong> <code>{req_id}</code><br/>
+                                <strong>Submitted By:</strong> <code>{req["requested_by_id"]}</code> | <strong>Date:</strong> {req["created_at"]}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    # Show payload parameters
+                    with st.expander("🔍 View Action Payload"):
+                        st.json(payload)
+
+                    # Render review details if already processed
+                    if req_status != "pending":
+                        st.write("---")
+                        st.markdown(
+                            f"""
+                            **Review Details:**
+                            - **Reviewer ID:** `{req["reviewed_by_id"]}`
+                            - **Reviewed At:** {req["reviewed_at"]}
+                            """
+                        )
+                        if req.get("comment"):
+                            st.write(f"**Reviewer Comment:** {req['comment']}")
+                        if req.get("rejection_reason"):
+                            st.error(f"**Rejection Reason:** {req['rejection_reason']}")
+
+                    # Render review controls for Admins if pending
+                    if req_status == "pending" and user_role == "admin":
+                        st.write("---")
+                        st.write("##### 🛡️ Admin Decision Portal")
+
+                        comment_input = st.text_input(
+                            "Reviewer Comments (Optional)",
+                            key=f"comment_{req_id}",
+                            placeholder="Provide verification notes or comments...",
+                        )
+
+                        col_app, col_rej, col_space = st.columns([1, 1, 3])
+
+                        with col_app:
+                            if st.button(
+                                "✅ Approve",
+                                key=f"btn_approve_{req_id}",
+                                type="primary",
+                            ):
+                                try:
+                                    review_payload = {
+                                        "status": "approved",
+                                        "comment": comment_input
+                                        if comment_input
+                                        else None,
+                                    }
+                                    rev_res = httpx.post(
+                                        f"{API_URL}/approvals/{req_id}/review",
+                                        json=review_payload,
+                                        headers=st.session_state.headers,
+                                    )
+                                    if rev_res.status_code == 200:
+                                        st.success(
+                                            "Action approved and executed successfully!"
+                                        )
+                                        time.sleep(0.8)
+                                        st.rerun()
+                                    else:
+                                        st.error(
+                                            f"Failed to approve request: {rev_res.text}"
+                                        )
+                                except Exception as err:
+                                    st.error(f"Request failed: {str(err)}")
+
+                        with col_rej:
+                            # Rejection reason is required
+                            reject_reason_input = st.text_input(
+                                "Rejection Reason (Required for rejection)",
+                                key=f"rej_reason_{req_id}",
+                                placeholder="Explain why this request is rejected...",
+                            )
+                            if st.button("❌ Reject", key=f"btn_reject_{req_id}"):
+                                if not reject_reason_input:
+                                    st.error("Rejection reason is required to reject.")
+                                else:
+                                    try:
+                                        review_payload = {
+                                            "status": "rejected",
+                                            "rejection_reason": reject_reason_input,
+                                            "comment": comment_input
+                                            if comment_input
+                                            else None,
+                                        }
+                                        rev_res = httpx.post(
+                                            f"{API_URL}/approvals/{req_id}/review",
+                                            json=review_payload,
+                                            headers=st.session_state.headers,
+                                        )
+                                        if rev_res.status_code == 200:
+                                            st.success(
+                                                "Action rejected and request updated."
+                                            )
+                                            time.sleep(0.8)
+                                            st.rerun()
+                                        else:
+                                            st.error(
+                                                f"Failed to reject request: {rev_res.text}"
+                                            )
+                                    except Exception as err:
+                                        st.error(f"Request failed: {str(err)}")
+                    st.markdown(
+                        "<hr style='border-top: 1px dashed rgba(255,255,255,0.08);'/>",
+                        unsafe_allow_html=True,
+                    )
+        else:
+            st.error(
+                f"Failed to load approval requests. Status code: {app_res.status_code}"
+            )
+    except Exception as err:
+        st.error(f"Connection failed: {str(err)}")
